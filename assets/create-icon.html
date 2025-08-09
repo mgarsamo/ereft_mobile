@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ereft App Icon Generator</title>
+</head>
+<body>
+    <h2>Ereft App Icon - Black House + Blue E</h2>
+    <canvas id="iconCanvas" width="1024" height="1024" style="border: 2px solid #2196F3; border-radius: 15px;"></canvas>
+    <br><br>
+    <button onclick="downloadIcon()" style="background: #2196F3; color: white; padding: 15px 30px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer;">Download 1024x1024 Icon</button>
+    
+    <script>
+        const canvas = document.getElementById('iconCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set background to white
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, 1024, 1024);
+        
+        // Draw black house (solid house with door)
+        ctx.fillStyle = '#000000';
+        
+        // House base (rectangle)
+        const houseX = 150;
+        const houseY = 350;
+        const houseWidth = 350;
+        const houseHeight = 300;
+        ctx.fillRect(houseX, houseY, houseWidth, houseHeight);
+        
+        // Roof (triangle)
+        ctx.beginPath();
+        ctx.moveTo(houseX - 30, houseY);
+        ctx.lineTo(houseX + houseWidth/2, houseY - 120);
+        ctx.lineTo(houseX + houseWidth + 30, houseY);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Door (white rectangle with black outline)
+        const doorX = houseX + houseWidth/2 - 40;
+        const doorY = houseY + 150;
+        const doorWidth = 80;
+        const doorHeight = 150;
+        
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(doorX, doorY, doorWidth, doorHeight);
+        
+        // Door outline
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(doorX, doorY, doorWidth, doorHeight);
+        
+        // Door handle
+        ctx.fillStyle = '#000000';
+        ctx.beginPath();
+        ctx.arc(doorX + doorWidth - 15, doorY + doorHeight/2, 6, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Windows (white with black frames)
+        const windowSize = 50;
+        const windowY = houseY + 80;
+        
+        // Left window
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(houseX + 60, windowY, windowSize, windowSize);
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(houseX + 60, windowY, windowSize, windowSize);
+        
+        // Right window
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(houseX + houseWidth - 110, windowY, windowSize, windowSize);
+        ctx.strokeRect(houseX + houseWidth - 110, windowY, windowSize, windowSize);
+        
+        // Window cross patterns
+        ctx.beginPath();
+        // Left window cross
+        ctx.moveTo(houseX + 85, windowY);
+        ctx.lineTo(houseX + 85, windowY + windowSize);
+        ctx.moveTo(houseX + 60, windowY + windowSize/2);
+        ctx.lineTo(houseX + 110, windowY + windowSize/2);
+        // Right window cross
+        ctx.moveTo(houseX + houseWidth - 85, windowY);
+        ctx.lineTo(houseX + houseWidth - 85, windowY + windowSize);
+        ctx.moveTo(houseX + houseWidth - 110, windowY + windowSize/2);
+        ctx.lineTo(houseX + houseWidth - 60, windowY + windowSize/2);
+        ctx.stroke();
+        
+        // Draw "E" next to house in blue
+        ctx.fillStyle = '#2196F3';
+        ctx.font = 'bold 280px Arial';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('E', 580, 500);
+        
+        // Add subtle blue corner accent
+        ctx.fillStyle = '#2196F3';
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(80, 0);
+        ctx.lineTo(0, 80);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Bottom right corner accent
+        ctx.beginPath();
+        ctx.moveTo(1024, 1024);
+        ctx.lineTo(944, 1024);
+        ctx.lineTo(1024, 944);
+        ctx.closePath();
+        ctx.fill();
+        
+        function downloadIcon() {
+            const link = document.createElement('a');
+            link.download = 'ereft-icon-1024x1024.png';
+            link.href = canvas.toDataURL('image/png', 1.0);
+            link.click();
+            alert('Icon downloaded! Save it as icon.png in your assets folder.');
+        }
+        
+        // Auto-generate on load
+        console.log('Ereft icon generated successfully!');
+    </script>
+    
+    <div style="margin-top: 20px; font-family: Arial;">
+        <h3>Instructions:</h3>
+        <ol>
+            <li>Click "Download 1024x1024 Icon" button</li>
+            <li>Save the file as <code>icon.png</code> in your <code>assets/</code> folder</li>
+            <li>Update your <code>app.json</code> to include: <code>"icon": "./assets/icon.png"</code></li>
+            <li>Rebuild your app with <code>eas build --platform ios --profile production</code></li>
+        </ol>
+    </div>
+</body>
+</html>

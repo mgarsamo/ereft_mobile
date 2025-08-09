@@ -10,9 +10,9 @@
     "description": "Find your perfect home in Ethiopia. Browse houses, apartments, and land across Ethiopian cities with advanced search, maps, and local address system.",
     "privacy": "public",
     "primaryColor": "#000000",
-    "icon": "./assets/icon.png",
+
     "splash": {
-      "image": "./assets/splash.png",
+
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -27,7 +27,8 @@
         "NSLocationWhenInUseUsageDescription": "Ereft uses your location to show nearby properties and help you find homes in your area.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Ereft uses your location to show nearby properties and help you find homes in your area.",
         "NSCameraUsageDescription": "Ereft needs camera access to let you take photos of properties.",
-        "NSPhotoLibraryUsageDescription": "Ereft needs photo library access to let you select property images."
+        "NSPhotoLibraryUsageDescription": "Ereft needs photo library access to let you select property images.",
+        "ITSAppUsesNonExemptEncryption": false
       },
       "config": {
         "googleMapsApiKey": "AIzaSyA4-mia5UmIz5P3Nfq4pc9sbx19oco1uIg"
@@ -36,17 +37,18 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+
         "backgroundColor": "#FFFFFF"
       },
       "package": "com.mgarsamo.ereft",
       "versionCode": 1,
       "permissions": [
-        "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION",
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
       ],
       "config": {
         "googleMaps": {
@@ -56,7 +58,7 @@
       "playStoreUrl": "https://play.google.com/store/apps/details?id=com.mgarsamo.ereft"
     },
     "web": {
-      "favicon": "./assets/favicon.png",
+
       "bundler": "metro"
     },
     "plugins": [
@@ -76,7 +78,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "your-project-id-here"
+        "projectId": "97281152-73eb-4305-9f84-baff3af1a997"
       }
     }
   }
