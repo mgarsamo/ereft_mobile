@@ -1,13 +1,5 @@
-// API Configuration - Multiple URLs to try
-// Update this with your computer's actual IP address
-const API_URLS = [
-  'http://192.168.12.129:8001',  // Your local IP
-  'http://10.0.0.1:8001',        // Common router IP
-  'http://localhost:8001',       // Localhost (may work with Expo tunnel)
-];
-
-// Use the first URL for now - update this based on your network
-export const API_BASE_URL = API_URLS[0];
+// API Configuration - Production URL
+export const API_BASE_URL = 'https://ereft.onrender.com';
 
 // API Endpoints
 export const API_ENDPOINTS = {
