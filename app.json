@@ -1,15 +1,18 @@
 {
   "expo": {
-    "name": "Ereft - Ethiopian Real Estate",
-    "slug": "ereft-mobile",
+    "name": "Ereft",
+    "slug": "ereft",
     "version": "1.0.0",
     "sdkVersion": "53.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "ereft",
-    "description": "Ethiopia's premier real estate platform. Find houses, apartments, and land across Ethiopia with advanced search, maps, and Ethiopian address system.",
+    "description": "Find your perfect home in Ethiopia. Browse houses, apartments, and land across Ethiopian cities with advanced search, maps, and local address system.",
     "privacy": "public",
+    "primaryColor": "#000000",
+    "icon": "./assets/icon.png",
     "splash": {
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -18,29 +21,63 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ereft.realestate",
+      "bundleIdentifier": "com.mgarsamo.ereft",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Ereft uses your location to show nearby properties and help you find homes in your area.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Ereft uses your location to show nearby properties and help you find homes in your area.",
+        "NSCameraUsageDescription": "Ereft needs camera access to let you take photos of properties.",
+        "NSPhotoLibraryUsageDescription": "Ereft needs photo library access to let you select property images."
+      },
       "config": {
         "googleMapsApiKey": "AIzaSyA4-mia5UmIz5P3Nfq4pc9sbx19oco1uIg"
-      }
+      },
+      "appStoreUrl": "https://apps.apple.com/app/ereft/id123456789"
     },
     "android": {
       "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
       },
-      "package": "com.ereft.realestate",
+      "package": "com.mgarsamo.ereft",
+      "versionCode": 1,
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ],
       "config": {
         "googleMaps": {
           "apiKey": "AIzaSyDP555TCXanSp5coUl7jMfAiF76NfUCIvc"
         }
-      }
+      },
+      "playStoreUrl": "https://play.google.com/store/apps/details?id=com.mgarsamo.ereft"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
     },
     "plugins": [
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow Ereft to use your location to show nearby properties."
+          "locationAlwaysAndWhenInUsePermission": "Ereft uses your location to show nearby properties and help you find homes in your area."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Ereft needs photo library access to let you select property images.",
+          "cameraPermission": "Ereft needs camera access to let you take photos of properties."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id-here"
+      }
+    }
   }
 }
