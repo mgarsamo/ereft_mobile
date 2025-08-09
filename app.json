@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "Ereft - Ethiopian Real Estate",
+    "slug": "ereft-mobile",
+    "version": "1.0.0",
+    "sdkVersion": "53.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "ereft",
+    "description": "Ethiopia's premier real estate platform. Find houses, apartments, and land across Ethiopia with advanced search, maps, and Ethiopian address system.",
+    "privacy": "public",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ereft.realestate",
+      "config": {
+        "googleMapsApiKey": "AIzaSyA4-mia5UmIz5P3Nfq4pc9sbx19oco1uIg"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#FFFFFF"
+      },
+      "package": "com.ereft.realestate",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDP555TCXanSp5coUl7jMfAiF76NfUCIvc"
+        }
+      }
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Ereft to use your location to show nearby properties."
+        }
+      ]
+    ]
+  }
+}
