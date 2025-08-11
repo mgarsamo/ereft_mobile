@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "1000845422249",
+    "project_id": "ereft-6fd24",
+    "storage_bucket": "ereft-6fd24.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1000845422249:ios:60a1d70078dbcf2ec783b8",
+        "android_client_info": {
+          "package_name": "com.mgarsamo.ereft"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "260862382785-8dd7424usg8g9nsovlm5r7v2qurrncgq.apps.googleusercontent.com",
+          "client_type": 3
+        },
+        {
+          "client_id": "260862382785-bkr2mukc06lo72p37dusc2vcc96v0aj2.apps.googleusercontent.com",
+          "client_type": 2,
+          "ios_info": {
+            "bundle_id": "com.mgarsamo.ereft"
+          }
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAd0Woihl3LP8mWDNO3o41A6BfaFnFIMYo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "260862382785-8dd7424usg8g9nsovlm5r7v2qurrncgq.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

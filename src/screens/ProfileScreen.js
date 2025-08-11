@@ -11,6 +11,7 @@ import {
   TextInput,
   Modal,
   Switch,
+  RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -55,6 +56,7 @@ const ProfileScreen = () => {
     recent_views: 0,
   });
   const [statsLoading, setStatsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Load real user stats on component mount
   useEffect(() => {
@@ -65,12 +67,21 @@ const ProfileScreen = () => {
     try {
       setStatsLoading(true);
       const stats = await getUserStats();
-      setUserStats(stats);
+      if (stats) {
+        setUserStats(stats);
+      }
     } catch (error) {
       console.error('Error loading user stats:', error);
+      // Keep the current stats (they should be zeros by default)
     } finally {
       setStatsLoading(false);
     }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadUserStats();
+    setRefreshing(false);
   };
 
   const handleImagePicker = async () => {
@@ -419,7 +430,18 @@ const ProfileScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       {renderHeader()}
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.scrollView} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#006AFF']}
+            tintColor="#006AFF"
+          />
+        }
+      >
         {renderProfileInfo()}
         {renderStats()}
         {renderMenuItems()}

@@ -15,29 +15,58 @@ import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useAuth } from '../context/AuthContext';
 import GoogleSignIn from '../components/GoogleSignIn';
-import FacebookSignIn from '../components/FacebookSignIn';
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '../config/api';
 
 const LoginScreen = () => {
   const navigation = useNavigation();
-  const { login, isLoading } = useAuth();
+  const { login, isLoading, sendPhoneVerification } = useAuth();
   
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  const [loginMethod, setLoginMethod] = useState('username'); // 'username' or 'phone'
+  const [countryCode, setCountryCode] = useState('+251'); // Default to Ethiopia
+  const [phoneNumber, setPhoneNumber] = useState('');
+
+  const validatePhoneNumber = (phone, country) => {
+    const cleanPhone = phone.replace(/\s|-|\(|\)/g, '');
+    
+    if (country === '+251') {
+      // Ethiopian phone validation: +251XXXXXXXXX or 09XXXXXXXX or 07XXXXXXXX
+      const ethiopianRegex = /^(\+251|0)?[79]\d{8}$/;
+      return ethiopianRegex.test(cleanPhone);
+    } else if (country === '+1') {
+      // US phone validation: +1XXXXXXXXXX or (XXX) XXX-XXXX
+      const usRegex = /^(\+1)?[2-9]\d{9}$/;
+      return usRegex.test(cleanPhone);
+    }
+    return false;
+  };
 
   const validateForm = () => {
     const newErrors = {};
 
-    if (!username.trim()) {
-      newErrors.username = 'Username is required';
-    }
+    if (loginMethod === 'phone') {
+      if (!phoneNumber.trim()) {
+        newErrors.phone = 'Phone number is required';
+      } else if (!validatePhoneNumber(phoneNumber, countryCode)) {
+        newErrors.phone = countryCode === '+251' 
+          ? 'Please enter a valid Ethiopian phone number (09XXXXXXXX or 07XXXXXXXX)'
+          : 'Please enter a valid US phone number';
+      }
+      
+      // For phone login, we don't need password initially - we'll send verification code
+    } else {
+      if (!username.trim()) {
+        newErrors.username = 'Username/Email is required';
+      }
 
-    if (!password.trim()) {
-      newErrors.password = 'Password is required';
-    } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
+      if (!password.trim()) {
+        newErrors.password = 'Password is required';
+      } else if (password.length < 6) {
+        newErrors.password = 'Password must be at least 6 characters';
+      }
     }
 
     setErrors(newErrors);
@@ -48,16 +77,57 @@ const LoginScreen = () => {
     if (!validateForm()) return;
 
     try {
-      const result = await login(username.trim(), password);
-      
-      if (result.success) {
-        Alert.alert('Success', SUCCESS_MESSAGES.LOGIN_SUCCESS);
+      if (loginMethod === 'phone') {
+        // Phone authentication - send verification code
+        const fullPhoneNumber = formatPhoneNumber(phoneNumber, countryCode);
+        
+        const result = await sendPhoneVerification(fullPhoneNumber);
+        
+        if (result.success) {
+          // Navigate to verification screen
+          navigation.navigate('PhoneVerification', {
+            phoneNumber: fullPhoneNumber,
+            countryCode: countryCode,
+          });
+        } else {
+          Alert.alert('Error', result.message || 'Failed to send verification code. Please try again.');
+        }
       } else {
-        Alert.alert('Error', result.error || ERROR_MESSAGES.LOGIN_FAILED);
+        // Username/email authentication
+        const result = await login(username.trim(), password);
+        
+        if (result.success) {
+          Alert.alert('Success', SUCCESS_MESSAGES.LOGIN_SUCCESS);
+        } else {
+          Alert.alert('Error', result.error || ERROR_MESSAGES.LOGIN_FAILED);
+        }
       }
     } catch (error) {
       Alert.alert('Error', ERROR_MESSAGES.NETWORK_ERROR);
     }
+  };
+
+  const formatPhoneNumber = (phone, country) => {
+    const cleanPhone = phone.replace(/\s|-|\(|\)/g, '');
+    
+    if (country === '+251') {
+      // Convert to international format
+      if (cleanPhone.startsWith('0')) {
+        return '+251' + cleanPhone.slice(1);
+      } else if (!cleanPhone.startsWith('+251')) {
+        return '+251' + cleanPhone;
+      }
+      return cleanPhone;
+    } else if (country === '+1') {
+      // Convert to international format
+      if (cleanPhone.length === 10) {
+        return '+1' + cleanPhone;
+      } else if (!cleanPhone.startsWith('+1')) {
+        return '+1' + cleanPhone;
+      }
+      return cleanPhone;
+    }
+    return phone;
   };
 
   const handleRegisterPress = () => {
@@ -94,76 +164,182 @@ const LoginScreen = () => {
 
           {/* Login Form */}
           <View style={styles.formContainer}>
-            {/* Username Input */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Username</Text>
-              <View style={[styles.inputWrapper, errors.username && styles.inputError]}>
-                <Icon name="person" size={20} color="#6C757D" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Enter your username"
-                  placeholderTextColor="#6C757D"
-                  value={username}
-                  onChangeText={(text) => {
-                    setUsername(text);
-                    if (errors.username) {
-                      setErrors({ ...errors, username: null });
-                    }
-                  }}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoComplete="username"
-                />
-              </View>
-              {errors.username && (
-                <Text style={styles.errorText}>{errors.username}</Text>
-              )}
+            {/* Login Method Toggle */}
+            <View style={styles.toggleContainer}>
+              <TouchableOpacity 
+                style={[styles.toggleButton, loginMethod === 'username' && styles.toggleButtonActive]}
+                onPress={() => {
+                  setLoginMethod('username');
+                  setUsername('');
+                  setErrors({});
+                }}
+              >
+                <Text style={[styles.toggleText, loginMethod === 'username' && styles.toggleTextActive]}>
+                  Username/Email
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.toggleButton, loginMethod === 'phone' && styles.toggleButtonActive]}
+                onPress={() => {
+                  setLoginMethod('phone');
+                  setUsername('');
+                  setErrors({});
+                }}
+              >
+                <Text style={[styles.toggleText, loginMethod === 'phone' && styles.toggleTextActive]}>
+                  Phone Number
+                </Text>
+              </TouchableOpacity>
             </View>
 
-            {/* Password Input */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Password</Text>
-              <View style={[styles.inputWrapper, errors.password && styles.inputError]}>
-                <Icon name="lock" size={20} color="#6C757D" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Enter your password"
-                  placeholderTextColor="#6C757D"
-                  value={password}
-                  onChangeText={(text) => {
-                    setPassword(text);
-                    if (errors.password) {
-                      setErrors({ ...errors, password: null });
-                    }
-                  }}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoComplete="password"
-                />
-                <TouchableOpacity
-                  style={styles.passwordToggle}
-                  onPress={() => setShowPassword(!showPassword)}
-                >
-                  <Icon
-                    name={showPassword ? 'visibility' : 'visibility-off'}
-                    size={20}
-                    color="#6C757D"
+            {loginMethod === 'phone' ? (
+              /* Phone Number Input */
+              <>
+                {/* Country Selection */}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>Country</Text>
+                  <View style={styles.countryContainer}>
+                    <TouchableOpacity 
+                      style={[styles.countryButton, countryCode === '+251' && styles.countryButtonActive]}
+                      onPress={() => setCountryCode('+251')}
+                    >
+                      <Text style={styles.countryFlag}>🇪🇹</Text>
+                      <Text style={[styles.countryText, countryCode === '+251' && styles.countryTextActive]}>
+                        Ethiopia (+251)
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.countryButton, countryCode === '+1' && styles.countryButtonActive]}
+                      onPress={() => setCountryCode('+1')}
+                    >
+                      <Text style={styles.countryFlag}>🇺🇸</Text>
+                      <Text style={[styles.countryText, countryCode === '+1' && styles.countryTextActive]}>
+                        USA (+1)
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Phone Number Input */}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>Phone Number</Text>
+                  <View style={[styles.inputWrapper, errors.phone && styles.inputError]}>
+                    <Text style={styles.countryCodeText}>{countryCode}</Text>
+                    <TextInput
+                      style={styles.phoneInput}
+                      placeholder={countryCode === '+251' ? '912345678' : '2025551234'}
+                      placeholderTextColor="#6C757D"
+                      value={phoneNumber}
+                      onChangeText={(text) => {
+                        setPhoneNumber(text);
+                        if (errors.phone) {
+                          setErrors({ ...errors, phone: null });
+                        }
+                      }}
+                      keyboardType="phone-pad"
+                      autoComplete="tel"
+                    />
+                  </View>
+                  {errors.phone && (
+                    <Text style={styles.errorText}>{errors.phone}</Text>
+                  )}
+                </View>
+
+                {/* Test Numbers Info */}
+                <View style={styles.testInfoContainer}>
+                  <Text style={styles.testInfoTitle}>📱 Test Numbers (Development):</Text>
+                  <Text style={styles.testInfoText}>
+                    🇪🇹 Ethiopia: +251911111111 (code: 123456)
+                  </Text>
+                  <Text style={styles.testInfoText}>
+                    🇺🇸 USA: +12025551234 (code: 111111)
+                  </Text>
+                  <Text style={styles.testInfoNote}>
+                    Other numbers work too - use any 6-digit code!
+                  </Text>
+                </View>
+              </>
+            ) : (
+              /* Username/Email Input */
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Username or Email</Text>
+                <View style={[styles.inputWrapper, errors.username && styles.inputError]}>
+                  <Icon 
+                    name="person" 
+                    size={20} 
+                    color="#6C757D" 
+                    style={styles.inputIcon} 
                   />
-                </TouchableOpacity>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Enter username or email"
+                    placeholderTextColor="#6C757D"
+                    value={username}
+                    onChangeText={(text) => {
+                      setUsername(text);
+                      if (errors.username) {
+                        setErrors({ ...errors, username: null });
+                      }
+                    }}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoComplete="username"
+                  />
+                </View>
+                {errors.username && (
+                  <Text style={styles.errorText}>{errors.username}</Text>
+                )}
               </View>
-              {errors.password && (
-                <Text style={styles.errorText}>{errors.password}</Text>
-              )}
-            </View>
+            )}
 
-            {/* Forgot Password */}
-            <TouchableOpacity
-              style={styles.forgotPasswordContainer}
-              onPress={handleForgotPassword}
-            >
-              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-            </TouchableOpacity>
+            {/* Password Input - Only show for username/email login */}
+            {loginMethod === 'username' && (
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Password</Text>
+                <View style={[styles.inputWrapper, errors.password && styles.inputError]}>
+                  <Icon name="lock" size={20} color="#6C757D" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Enter your password"
+                    placeholderTextColor="#6C757D"
+                    value={password}
+                    onChangeText={(text) => {
+                      setPassword(text);
+                      if (errors.password) {
+                        setErrors({ ...errors, password: null });
+                      }
+                    }}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoComplete="password"
+                  />
+                  <TouchableOpacity
+                    style={styles.passwordToggle}
+                    onPress={() => setShowPassword(!showPassword)}
+                  >
+                    <Icon
+                      name={showPassword ? 'visibility' : 'visibility-off'}
+                      size={20}
+                      color="#6C757D"
+                    />
+                  </TouchableOpacity>
+                </View>
+                {errors.password && (
+                  <Text style={styles.errorText}>{errors.password}</Text>
+                )}
+              </View>
+            )}
+
+            {/* Forgot Password - Only show for username/email login */}
+            {loginMethod === 'username' && (
+              <TouchableOpacity
+                style={styles.forgotPasswordContainer}
+                onPress={handleForgotPassword}
+              >
+                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+              </TouchableOpacity>
+            )}
 
             {/* Login Button */}
             <TouchableOpacity
@@ -172,9 +348,13 @@ const LoginScreen = () => {
               disabled={isLoading}
             >
               {isLoading ? (
-                <Text style={styles.loginButtonText}>Signing In...</Text>
+                <Text style={styles.loginButtonText}>
+                  {loginMethod === 'phone' ? 'Sending Code...' : 'Signing In...'}
+                </Text>
               ) : (
-                <Text style={styles.loginButtonText}>Sign In</Text>
+                <Text style={styles.loginButtonText}>
+                  {loginMethod === 'phone' ? 'Send Verification Code' : 'Sign In'}
+                </Text>
               )}
             </TouchableOpacity>
 
@@ -187,7 +367,6 @@ const LoginScreen = () => {
 
             {/* Social Login Buttons */}
             <GoogleSignIn style={styles.socialButton} textStyle={styles.socialButtonText} />
-            <FacebookSignIn style={styles.socialButton} textStyle={styles.socialButtonText} />
 
             {/* Register Link */}
             <View style={styles.registerContainer}>
@@ -373,6 +552,113 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#006AFF',
     fontWeight: '600',
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 24,
+  },
+  toggleButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  toggleButtonActive: {
+    backgroundColor: '#006AFF',
+    shadowColor: '#006AFF',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  toggleText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6C757D',
+  },
+  toggleTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  countryContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  countryButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderWidth: 2,
+    borderColor: '#E9ECEF',
+  },
+  countryButtonActive: {
+    backgroundColor: '#E3F2FD',
+    borderColor: '#006AFF',
+  },
+  countryFlag: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  countryText: {
+    fontSize: 14,
+    color: '#6C757D',
+    fontWeight: '500',
+  },
+  countryTextActive: {
+    color: '#006AFF',
+    fontWeight: '600',
+  },
+  countryCodeText: {
+    fontSize: 16,
+    color: '#1A1A1A',
+    fontWeight: '600',
+    paddingRight: 8,
+    borderRightWidth: 1,
+    borderRightColor: '#E9ECEF',
+    marginRight: 12,
+  },
+  phoneInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#1A1A1A',
+    paddingVertical: 0,
+  },
+  testInfoContainer: {
+    backgroundColor: '#E3F2FD',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#006AFF',
+  },
+  testInfoTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginBottom: 4,
+  },
+  testInfoText: {
+    fontSize: 11,
+    color: '#1A1A1A',
+    marginBottom: 2,
+    fontFamily: 'monospace',
+  },
+  testInfoNote: {
+    fontSize: 10,
+    color: '#6C757D',
+    fontStyle: 'italic',
+    marginTop: 4,
   },
 });
 

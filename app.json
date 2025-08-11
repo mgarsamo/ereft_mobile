@@ -8,11 +8,13 @@
     "userInterfaceStyle": "light",
     "scheme": "ereft",
     "description": "Find your perfect home in Ethiopia. Browse houses, apartments, and land across Ethiopian cities with advanced search, maps, and local address system.",
-    "privacy": "public",
+
     "primaryColor": "#000000",
+    "icon": "./assets/icon.png",
+
 
     "splash": {
-
+      "image": "./assets/icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -28,16 +30,21 @@
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Ereft uses your location to show nearby properties and help you find homes in your area.",
         "NSCameraUsageDescription": "Ereft needs camera access to let you take photos of properties.",
         "NSPhotoLibraryUsageDescription": "Ereft needs photo library access to let you select property images.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLName": "google-oauth",
+            "CFBundleURLSchemes": ["ereft"]
+          }
+        ]
       },
       "config": {
-        "googleMapsApiKey": "AIzaSyA4-mia5UmIz5P3Nfq4pc9sbx19oco1uIg"
-      },
-      "appStoreUrl": "https://apps.apple.com/app/ereft/id123456789"
+        "googleMapsApiKey": "AIzaSyAWis-jNmUwxCikA2FG7QqLi-nz7jEvadY"
+      }
     },
     "android": {
       "adaptiveIcon": {
-
+        "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#FFFFFF"
       },
       "package": "com.mgarsamo.ereft",
@@ -55,10 +62,21 @@
           "apiKey": "AIzaSyDP555TCXanSp5coUl7jMfAiF76NfUCIvc"
         }
       },
-      "playStoreUrl": "https://play.google.com/store/apps/details?id=com.mgarsamo.ereft"
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "ereft",
+              "host": "oauth"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
-
       "bundler": "metro"
     },
     "plugins": [

@@ -18,15 +18,18 @@
       "autoIncrement": true,
       "ios": {
         "simulator": false
+      },
+      "android": {
+        "buildType": "apk"
       }
     }
   },
   "submit": {
     "production": {
       "ios": {
-        "appleId": "your-apple-id@email.com",
-        "ascAppId": "1234567890",
-        "appleTeamId": "ABCD123456"
+        "appleId": "mgarsamo@icloud.com",
+        "appleTeamId": "7U44S23G23",
+        "ascAppId": "6749813979"
       },
       "android": {
         "serviceAccountKeyPath": "./path/to/service-account-key.json",

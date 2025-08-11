@@ -15,7 +15,8 @@ import { useProperty } from '../context/PropertyContext';
 
 const FeaturedScreen = () => {
   const navigation = useNavigation();
-  const { getProperties } = useProperty();
+  const { getSafeProperties, getSafeFeaturedProperties } = useProperty();
+  
   const [featuredProperties, setFeaturedProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -28,51 +29,66 @@ const FeaturedScreen = () => {
   const loadFeaturedProperties = async () => {
     try {
       setError(null);
-      const properties = await getProperties();
-      // Filter for featured properties or use mock data for now
-      const featured = properties.filter(p => p.is_featured) || [];
       
-      // Mock featured properties for demonstration
-      const mockFeatured = [
-        {
-          id: '1',
-          title: 'Luxury Villa in Bole',
-          price: 4500000,
-          location: 'Bole, Addis Ababa',
-          area_sqm: 350,
-          bedrooms: 5,
-          bathrooms: 4,
-          property_type: 'house',
-          listing_type: 'sale',
-          is_featured: true,
-        },
-        {
-          id: '2',
-          title: 'Modern Penthouse in Kazanchis',
-          price: 3800000,
-          location: 'Kazanchis, Addis Ababa',
-          area_sqm: 280,
-          bedrooms: 4,
-          bathrooms: 3,
-          property_type: 'apartment',
-          listing_type: 'sale',
-          is_featured: true,
-        },
-        {
-          id: '3',
-          title: 'Premium Office Space in CMC',
-          price: 6200000,
-          location: 'CMC, Addis Ababa',
-          area_sqm: 500,
-          bedrooms: 0,
-          bathrooms: 2,
-          property_type: 'commercial',
-          listing_type: 'sale',
-          is_featured: true,
-        },
-      ];
+      // Use safe functions to ensure we always have data
+      const properties = getSafeProperties();
+      const featured = getSafeFeaturedProperties();
       
-      setFeaturedProperties(featured.length > 0 ? featured : mockFeatured);
+      // Filter for featured properties or use the featured properties directly
+      let finalFeatured = [];
+      
+      if (properties && Array.isArray(properties)) {
+        finalFeatured = properties.filter(p => p.is_featured) || [];
+      }
+      
+      // If no featured properties found, use the featured properties from context
+      if (finalFeatured.length === 0 && featured && Array.isArray(featured)) {
+        finalFeatured = featured;
+      }
+      
+      // If still no featured properties, use mock data
+      if (finalFeatured.length === 0) {
+        finalFeatured = [
+          {
+            id: '1',
+            title: 'Luxury Villa in Bole',
+            price: 4500000,
+            location: 'Bole, Addis Ababa',
+            area_sqm: 350,
+            bedrooms: 5,
+            bathrooms: 4,
+            property_type: 'house',
+            listing_type: 'sale',
+            is_featured: true,
+          },
+          {
+            id: '2',
+            title: 'Modern Penthouse in Kazanchis',
+            price: 3800000,
+            location: 'Kazanchis, Addis Ababa',
+            area_sqm: 280,
+            bedrooms: 4,
+            bathrooms: 3,
+            property_type: 'apartment',
+            listing_type: 'sale',
+            is_featured: true,
+          },
+          {
+            id: '3',
+            title: 'Premium Office Space in CMC',
+            price: 6200000,
+            location: 'CMC, Addis Ababa',
+            area_sqm: 500,
+            bedrooms: 0,
+            bathrooms: 2,
+            property_type: 'commercial',
+            listing_type: 'sale',
+            is_featured: true,
+          },
+        ];
+      }
+      
+      setFeaturedProperties(finalFeatured);
     } catch (err) {
       console.error('Error loading featured properties:', err);
       setError('Failed to load featured properties');

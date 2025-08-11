@@ -8,10 +8,12 @@ import {
   SafeAreaView,
   Dimensions,
   Platform,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import MapView, { Marker, Callout } from 'react-native-maps';
+import MapView, { Marker, Callout, Circle } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useProperty } from '../context/PropertyContext';
 
@@ -38,12 +40,19 @@ const MapScreen = () => {
   });
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [mapError, setMapError] = useState(null);
+  
+  // Circle search disabled for now
+  const [isCircleSearchMode, setIsCircleSearchMode] = useState(false);
+  const [searchCircle, setSearchCircle] = useState(null);
+  const [circleProperties, setCircleProperties] = useState([]);
+  const [showCircleResults, setShowCircleResults] = useState(false);
 
   useEffect(() => {
     loadProperties();
-    getUserLocation();
+    // Don't auto-get user location - always default to Addis Ababa
     console.log('MapScreen: API Key:', GOOGLE_MAPS_API_KEY);
     console.log('MapScreen: Platform:', Platform.OS);
+    console.log('MapScreen: Defaulting to Addis Ababa location');
   }, []);
 
   const loadProperties = async () => {
@@ -161,6 +170,53 @@ const MapScreen = () => {
     }
   };
 
+  // Calculate distance between two coordinates using Haversine formula
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371000; // Earth's radius in meters
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
+  // Auto-zoom to fit the circle area
+  const zoomToCircle = (circle) => {
+    if (!circle) return;
+    
+    // Calculate appropriate zoom level based on circle radius
+    const radiusInKm = circle.radius / 1000;
+    const latitudeDelta = radiusInKm / 111; // Rough conversion: 1 degree ≈ 111 km
+    const longitudeDelta = radiusInKm / (111 * Math.cos(circle.center.latitude * Math.PI / 180));
+    
+    // Add some padding around the circle
+    const padding = 1.5;
+    
+    setRegion({
+      latitude: circle.center.latitude,
+      longitude: circle.center.longitude,
+      latitudeDelta: latitudeDelta * padding,
+      longitudeDelta: longitudeDelta * padding,
+    });
+  };
+
+  // Simple map interaction - circle drawing disabled
+  const handleMapPress = (event) => {
+    // Circle drawing disabled - map is for viewing properties only
+    console.log('Map pressed at:', event.nativeEvent.coordinate);
+  };
+
+  // Circle search functionality disabled
+  const toggleCircleSearchMode = () => {
+    Alert.alert(
+      'Feature Coming Soon',
+      'Circle search functionality will be available in a future update.',
+      [{ text: 'OK', style: 'default' }]
+    );
+  };
+
   const handleMapError = (error) => {
     console.error('MapView error:', error);
     setMapError('Map error: ' + error.nativeEvent?.message || error.message);
@@ -196,12 +252,25 @@ const MapScreen = () => {
       
       <Text style={styles.headerTitle}>Map View</Text>
       
-      <TouchableOpacity 
-        style={styles.locationButton}
-        onPress={handleMyLocation}
-      >
-        <Icon name="my-location" size={24} color="#FFFFFF" />
-      </TouchableOpacity>
+      <View style={styles.headerButtons}>
+        <TouchableOpacity 
+          style={[styles.circleSearchButton, isCircleSearchMode && styles.circleSearchButtonActive]}
+          onPress={toggleCircleSearchMode}
+        >
+          <Icon 
+            name={isCircleSearchMode ? 'close' : 'radio-button-unchecked'} 
+            size={20} 
+            color={isCircleSearchMode ? '#FF0000' : '#FFFFFF'} 
+          />
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.locationButton}
+          onPress={handleMyLocation}
+        >
+          <Icon name="my-location" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -278,10 +347,14 @@ const MapScreen = () => {
             {renderPropertyCallout(property)}
           </Marker>
         ))}
+        
+        {/* Circle drawing disabled */}
       </MapView>
       
       {renderHeader()}
       {renderMapLegend()}
+      
+
     </SafeAreaView>
   );
 };
@@ -333,6 +406,22 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.75)',
     textShadowOffset: { width: -1, height: 1 },
     textShadowRadius: 10,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  circleSearchButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  circleSearchButtonActive: {
+    backgroundColor: 'rgba(255, 0, 0, 0.8)',
   },
   locationButton: {
     width: 40,
@@ -413,6 +502,78 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: 12,
     color: '#1A1A1A',
+  },
+  // Modal styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+    paddingTop: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1A1A1A',
+  },
+  modalCloseButton: {
+    padding: 5,
+  },
+  resultItem: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  resultTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1A1A1A',
+    marginBottom: 5,
+  },
+  resultPrice: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2196F3',
+    marginBottom: 3,
+  },
+  resultLocation: {
+    fontSize: 12,
+    color: '#666',
+  },
+  emptyResults: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyResultsText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+  },
+  clearSearchButton: {
+    margin: 20,
+    padding: 15,
+    backgroundColor: '#FF6B6B',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  clearSearchButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>📱 Ereft App Store Screenshot Resizer</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        .upload-area { border: 3px dashed #2196F3; border-radius: 12px; padding: 40px; text-align: center; margin: 20px 0; background: #f8f9fa; cursor: pointer; }
+        .upload-area:hover { background: #e3f2fd; }
+        input[type="file"] { display: none; }
+        .btn { background: #2196F3; color: white; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin: 10px; }
+        .btn:hover { background: #1976D2; }
+        .size-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin: 20px 0; }
+        .size-option { background: #f0f8ff; border: 2px solid #2196F3; border-radius: 8px; padding: 15px; cursor: pointer; text-align: center; }
+        .size-option:hover { background: #e3f2fd; }
+        .size-option.selected { background: #2196F3; color: white; }
+        .preview { margin: 20px 0; text-align: center; }
+        .preview canvas { border: 2px solid #ddd; border-radius: 8px; max-width: 300px; height: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📱 Ereft Screenshot Resizer for App Store</h1>
+        <p>Resize your screenshots to meet exact App Store requirements</p>
+        
+        <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+            <h3>📸 Upload Screenshot</h3>
+            <p>Click here to select your screenshot image</p>
+            <input type="file" id="fileInput" accept="image/*" onchange="loadImage(event)">
+        </div>
+        
+        <div id="sizeOptions" style="display: none;">
+            <h3>📐 Select Target Size:</h3>
+            <div class="size-grid">
+                <div class="size-option" onclick="selectSize(1242, 2688, 'iPhone-6.5-inch')">
+                    <strong>iPhone 6.5" (REQUIRED)</strong><br>
+                    1242 × 2688px<br>
+                    <small>iPhone XS Max, 11 Pro Max</small>
+                </div>
+                <div class="size-option" onclick="selectSize(1284, 2778, 'iPhone-6.1-inch')">
+                    <strong>iPhone 6.1" (ALTERNATIVE)</strong><br>
+                    1284 × 2778px<br>
+                    <small>iPhone 12/13/14/15 Pro</small>
+                </div>
+                <div class="size-option" onclick="selectSize(2688, 1242, 'iPhone-6.5-landscape')">
+                    <strong>iPhone 6.5" Landscape</strong><br>
+                    2688 × 1242px<br>
+                    <small>Landscape orientation</small>
+                </div>
+                <div class="size-option" onclick="selectSize(2778, 1284, 'iPhone-6.1-landscape')">
+                    <strong>iPhone 6.1" Landscape</strong><br>
+                    2778 × 1284px<br>
+                    <small>Landscape orientation</small>
+                </div>
+                <div class="size-option" onclick="selectSize(2048, 2732, 'iPad-12.9-inch')">
+                    <strong>iPad 12.9"</strong><br>
+                    2048 × 2732px<br>
+                    <small>iPad Pro 12.9"</small>
+                </div>
+                <div class="size-option" onclick="selectSize(1668, 2388, 'iPad-11-inch')">
+                    <strong>iPad 11"</strong><br>
+                    1668 × 2388px<br>
+                    <small>iPad Pro 11"</small>
+                </div>
+            </div>
+        </div>
+        
+        <div id="previewArea" style="display: none;">
+            <h3>🖼️ Preview & Download:</h3>
+            <div class="preview">
+                <canvas id="previewCanvas"></canvas>
+                <br>
+                <button class="btn" onclick="downloadResized()">📥 Download Resized Screenshot</button>
+            </div>
+        </div>
+        
+        <div style="margin-top: 30px; padding: 20px; background: #e8f5e8; border-radius: 8px;">
+            <h3>✅ Quick Steps:</h3>
+            <ol>
+                <li><strong>Upload</strong> your current screenshot</li>
+                <li><strong>Choose</strong> iPhone 6.5" (1242×2688px) - EXACT App Store requirement</li>
+                <li><strong>Download</strong> the perfectly sized version</li>
+                <li><strong>Upload to App Store Connect</strong></li>
+                <li><strong>Repeat</strong> for all 5 screenshots</li>
+            </ol>
+            <p><strong>💡 Pro Tip:</strong> Use iPhone 6.5" (1242×2688px) - this is the EXACT size App Store Connect requires!</p>
+        </div>
+    </div>
+
+    <script>
+        let originalImage = null;
+        let selectedWidth = 1242;
+        let selectedHeight = 2688;
+        let selectedDevice = 'iPhone-6.5-inch';
+
+        function loadImage(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    originalImage = img;
+                    document.getElementById('sizeOptions').style.display = 'block';
+                    // Auto-select iPhone 6.5" as required by App Store
+                    selectSize(1242, 2688, 'iPhone-6.5-inch');
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function selectSize(width, height, device) {
+            selectedWidth = width;
+            selectedHeight = height;
+            selectedDevice = device;
+            
+            // Update selected state
+            document.querySelectorAll('.size-option').forEach(el => el.classList.remove('selected'));
+            event.target.classList.add('selected');
+            
+            if (originalImage) {
+                resizeImage();
+            }
+        }
+
+        function resizeImage() {
+            const canvas = document.getElementById('previewCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = selectedWidth;
+            canvas.height = selectedHeight;
+            
+            // White background
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, selectedWidth, selectedHeight);
+            
+            // Calculate best fit scaling
+            const scaleX = selectedWidth / originalImage.width;
+            const scaleY = selectedHeight / originalImage.height;
+            const scale = Math.min(scaleX, scaleY);
+            
+            const newWidth = originalImage.width * scale;
+            const newHeight = originalImage.height * scale;
+            
+            // Center the image
+            const x = (selectedWidth - newWidth) / 2;
+            const y = (selectedHeight - newHeight) / 2;
+            
+            ctx.drawImage(originalImage, x, y, newWidth, newHeight);
+            
+            document.getElementById('previewArea').style.display = 'block';
+        }
+
+        function downloadResized() {
+            const canvas = document.getElementById('previewCanvas');
+            const timestamp = Date.now();
+            const link = document.createElement('a');
+            link.download = `ereft-${selectedDevice}-${selectedWidth}x${selectedHeight}-${timestamp}.png`;
+            link.href = canvas.toDataURL('image/png', 1.0);
+            link.click();
+            
+            alert(`✅ Downloaded: ${selectedWidth}×${selectedHeight}px screenshot!\n\nReady for App Store Connect upload.`);
+        }
+    </script>
+</body>
+</html>

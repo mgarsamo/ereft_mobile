@@ -24,52 +24,6 @@ const FavoritesScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Mock favorites data for demonstration
-  const mockFavorites = [
-    {
-      id: '1',
-      title: 'Beautiful House in Bole',
-      price: 2500000,
-      location: 'Bole, Addis Ababa',
-      bedrooms: 4,
-      bathrooms: 3,
-      area: 250,
-      propertyType: 'House',
-      listingType: 'Sale',
-      images: ['https://via.placeholder.com/300x200/006AFF/FFFFFF?text=House+1'],
-      isFavorite: true,
-      addedDate: '2024-01-15',
-    },
-    {
-      id: '2',
-      title: 'Modern Apartment in Kazanchis',
-      price: 1800000,
-      location: 'Kazanchis, Addis Ababa',
-      bedrooms: 3,
-      bathrooms: 2,
-      area: 180,
-      propertyType: 'Apartment',
-      listingType: 'Sale',
-      images: ['https://via.placeholder.com/300x200/FF6B35/FFFFFF?text=Apartment+1'],
-      isFavorite: true,
-      addedDate: '2024-01-10',
-    },
-    {
-      id: '3',
-      title: 'Luxury Villa in CMC',
-      price: 4200000,
-      location: 'CMC, Addis Ababa',
-      bedrooms: 5,
-      bathrooms: 4,
-      area: 400,
-      propertyType: 'Villa',
-      listingType: 'Sale',
-      images: ['https://via.placeholder.com/300x200/28A745/FFFFFF?text=Villa+1'],
-      isFavorite: true,
-      addedDate: '2024-01-05',
-    },
-  ];
-
   useEffect(() => {
     loadFavorites();
   }, []);
@@ -77,12 +31,18 @@ const FavoritesScreen = () => {
   const loadFavorites = async () => {
     try {
       setLoading(true);
-      // Try to get real favorites, fall back to mock data
+      // Get real favorites from the context
       const data = await getFavorites();
-      setFavorites(mockFavorites); // Use mock data for now
+      if (data && data.results) {
+        setFavorites(data.results);
+      } else if (Array.isArray(data)) {
+        setFavorites(data);
+      } else {
+        setFavorites([]);
+      }
     } catch (error) {
       console.error('Error loading favorites:', error);
-      setFavorites(mockFavorites); // Use mock data on error
+      setFavorites([]);
     } finally {
       setLoading(false);
     }
@@ -99,16 +59,26 @@ const FavoritesScreen = () => {
       'Remove from Favorites',
       'Are you sure you want to remove this property from your favorites?',
       [
-        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
         {
           text: 'Remove',
           style: 'destructive',
           onPress: async () => {
             try {
+              // Remove from favorites using the context
               await toggleFavorite(propertyId);
-              setFavorites(prev => prev.filter(item => item.id !== propertyId));
+              
+              // Update local state
+              setFavorites(prev => prev.filter(fav => fav.property?.id !== propertyId && fav.id !== propertyId));
+              
+              // Show success message
+              Alert.alert('Success', 'Property removed from favorites');
             } catch (error) {
-              Alert.alert('Error', 'Failed to remove from favorites');
+              console.error('Error removing favorite:', error);
+              Alert.alert('Error', 'Failed to remove property from favorites');
             }
           },
         },
@@ -170,78 +140,83 @@ const FavoritesScreen = () => {
     </View>
   );
 
-  const renderPropertyCard = (property) => (
-    <TouchableOpacity
-      key={property.id}
-      style={styles.propertyCard}
-      onPress={() => handlePropertyPress(property)}
-    >
-      <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: property.images[0] }}
-          style={styles.propertyImage}
-          defaultSource={{ uri: 'https://via.placeholder.com/300x200/E9ECEF/6C757D?text=No+Image' }}
-        />
-        <TouchableOpacity
-          style={styles.favoriteButton}
-          onPress={() => handleRemoveFavorite(property.id)}
-        >
-          <Icon name="favorite" size={24} color="#FF6B35" />
-        </TouchableOpacity>
-        <View style={styles.listingTypeBadge}>
-          <Text style={styles.listingTypeText}>{property.listingType}</Text>
-        </View>
-      </View>
-      
-      <View style={styles.propertyInfo}>
-        <View style={styles.propertyHeader}>
-          <Text style={styles.propertyPrice}>{formatPrice(property.price)}</Text>
-          <Text style={styles.addedDate}>Added {formatDate(property.addedDate)}</Text>
-        </View>
-        
-        <Text style={styles.propertyTitle} numberOfLines={2}>
-          {property.title}
-        </Text>
-        
-        <Text style={styles.propertyLocation}>
-          <Icon name="location-on" size={14} color="#6C757D" />
-          {' '}{property.location}
-        </Text>
-        
-        <View style={styles.propertyDetails}>
-          <View style={styles.detailItem}>
-            <Icon name="bed" size={16} color="#6C757D" />
-            <Text style={styles.detailText}>{property.bedrooms} bed</Text>
-          </View>
-          <View style={styles.detailItem}>
-            <Icon name="bathtub" size={16} color="#6C757D" />
-            <Text style={styles.detailText}>{property.bathrooms} bath</Text>
-          </View>
-          <View style={styles.detailItem}>
-            <Icon name="square-foot" size={16} color="#6C757D" />
-            <Text style={styles.detailText}>{property.area} m²</Text>
-          </View>
-        </View>
-        
-        <View style={styles.propertyActions}>
+  const renderPropertyCard = (favorite) => {
+    // Extract property data from favorite object
+    const property = favorite.property || favorite;
+    
+    return (
+      <TouchableOpacity
+        key={favorite.id}
+        style={styles.propertyCard}
+        onPress={() => handlePropertyPress(property)}
+      >
+        <View style={styles.imageContainer}>
+          <Image
+            source={{ uri: property.images && property.images[0] ? property.images[0] : 'https://via.placeholder.com/300x200/E9ECEF/6C757D?text=No+Image' }}
+            style={styles.propertyImage}
+            defaultSource={{ uri: 'https://via.placeholder.com/300x200/E9ECEF/6C757D?text=No+Image' }}
+          />
           <TouchableOpacity
-            style={styles.contactButton}
-            onPress={() => Alert.alert('Contact', `Contact agent for ${property.title}`)}
+            style={styles.favoriteButton}
+            onPress={() => handleRemoveFavorite(property.id)}
           >
-            <Icon name="phone" size={16} color="#006AFF" />
-            <Text style={styles.contactButtonText}>Contact</Text>
+            <Icon name="favorite" size={24} color="#FF6B35" />
           </TouchableOpacity>
+          <View style={styles.listingTypeBadge}>
+            <Text style={styles.listingTypeText}>{property.listing_type || property.listingType || 'Sale'}</Text>
+          </View>
+        </View>
+        
+        <View style={styles.propertyInfo}>
+          <View style={styles.propertyHeader}>
+            <Text style={styles.propertyPrice}>{formatPrice(property.price)}</Text>
+            <Text style={styles.addedDate}>Added {formatDate(favorite.created_at || property.created_at || property.addedDate)}</Text>
+          </View>
           
-          <TouchableOpacity
-            style={styles.shareButton}
-            onPress={() => Alert.alert('Share', `Share ${property.title}`)}
-          >
-            <Icon name="share" size={16} color="#6C757D" />
-          </TouchableOpacity>
+          <Text style={styles.propertyTitle} numberOfLines={2}>
+            {property.title}
+          </Text>
+          
+          <Text style={styles.propertyLocation}>
+            <Icon name="location-on" size={14} color="#6C757D" />
+            {' '}{property.location}
+          </Text>
+          
+          <View style={styles.propertyDetails}>
+            <View style={styles.detailItem}>
+              <Icon name="bed" size={16} color="#6C757D" />
+              <Text style={styles.detailText}>{property.bedrooms} bed</Text>
+            </View>
+            <View style={styles.detailItem}>
+              <Icon name="bathtub" size={16} color="#6C757D" />
+              <Text style={styles.detailText}>{property.bathrooms} bath</Text>
+            </View>
+            <View style={styles.detailItem}>
+              <Icon name="square-foot" size={16} color="#6C757D" />
+              <Text style={styles.detailText}>{property.area_sqm || property.area} m²</Text>
+            </View>
+          </View>
+          
+          <View style={styles.propertyActions}>
+            <TouchableOpacity
+              style={styles.contactButton}
+              onPress={() => Alert.alert('Contact', `Contact agent for ${property.title}`)}
+            >
+              <Icon name="phone" size={16} color="#006AFF" />
+              <Text style={styles.contactButtonText}>Contact</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.shareButton}
+              onPress={() => Alert.alert('Share', `Share ${property.title}`)}
+            >
+              <Icon name="share" size={16} color="#6C757D" />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   const renderFavoritesList = () => (
     <ScrollView

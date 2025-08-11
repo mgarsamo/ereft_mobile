@@ -9,6 +9,7 @@ import {
   RefreshControl,
   SafeAreaView,
   Image,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -33,7 +34,40 @@ const HomeScreen = () => {
   };
 
   const handlePropertyPress = (property) => {
-    navigation.navigate('PropertyDetail', { property });
+    try {
+      // Ensure we have a valid property object with required fields
+      const propertyData = {
+        id: property.id || Date.now(),
+        title: property.title || 'Property',
+        price: property.price || 0,
+        location: property.location || property.address || 'Location not specified',
+        address: property.address || property.location || '',
+        city: property.city || 'Addis Ababa',
+        bedrooms: property.bedrooms || 0,
+        bathrooms: property.bathrooms || 0,
+        area_sqm: property.area_sqm || property.square_feet || 100,
+        description: property.description || 'No description available',
+        property_type: property.property_type || 'house',
+        listing_type: property.listing_type || 'sale',
+        images: property.images || [],
+        owner: property.owner || {
+          name: 'Property Owner',
+          phone: '+251-911-123456',
+          email: 'owner@example.com'
+        },
+        is_favorite: property.is_favorite || false,
+        created_at: property.created_at || new Date().toISOString(),
+        ...property
+      };
+      
+      navigation.navigate('PropertyDetail', { 
+        property: propertyData,
+        propertyId: propertyData.id 
+      });
+    } catch (error) {
+      console.error('Error navigating to property detail:', error);
+      Alert.alert('Error', 'Unable to view property details. Please try again.');
+    }
   };
 
   const renderHeader = () => (

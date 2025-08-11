@@ -85,12 +85,17 @@
         ctx.lineTo(houseX + houseWidth - 60, windowY + windowSize/2);
         ctx.stroke();
         
-        // Draw "E" next to house in blue
+        // Draw blue "E" next to house - same height as house
         ctx.fillStyle = '#2196F3';
-        ctx.font = 'bold 280px Arial';
+        ctx.font = 'bold 420px Arial';  // Large size to match house height
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        ctx.fillText('E', 580, 500);
+        
+        // Position E next to the house at same vertical center
+        const eX = houseX + houseWidth + 40; // 40px gap from house
+        const eY = houseY + (houseHeight / 2); // Center vertically with house
+        
+        ctx.fillText('E', eX, eY);
         
         // Add subtle blue corner accent
         ctx.fillStyle = '#2196F3';

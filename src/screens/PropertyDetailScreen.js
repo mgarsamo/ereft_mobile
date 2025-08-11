@@ -161,65 +161,79 @@ const PropertyDetailScreen = () => {
     </View>
   );
 
-  const renderImageGallery = () => (
-    <View style={styles.imageContainer}>
-      <ScrollView
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={(event) => {
-          const index = Math.round(event.nativeEvent.contentOffset.x / width);
-          setCurrentImageIndex(index);
-        }}
-      >
-        {property.images.map((image, index) => (
-          <Image
-            key={index}
-            source={{ uri: image }}
-            style={styles.propertyImage}
-            resizeMode="cover"
-          />
-        ))}
-      </ScrollView>
-      
-      <View style={styles.imageIndicator}>
-        {property.images.map((_, index) => (
-          <View
-            key={index}
-            style={[
-              styles.indicatorDot,
-              index === currentImageIndex && styles.activeIndicatorDot
-            ]}
-          />
-        ))}
+  const renderImageGallery = () => {
+    // Safety check for property and images
+    if (!property || !property.images || !Array.isArray(property.images) || property.images.length === 0) {
+      return (
+        <View style={styles.imageContainer}>
+          <View style={styles.noImageContainer}>
+            <Icon name="image" size={60} color="#6C757D" />
+            <Text style={styles.noImageText}>No images available</Text>
+          </View>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.imageContainer}>
+        <ScrollView
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={(event) => {
+            const index = Math.round(event.nativeEvent.contentOffset.x / width);
+            setCurrentImageIndex(index);
+          }}
+        >
+          {property.images.map((image, index) => (
+            <Image
+              key={index}
+              source={{ uri: image }}
+              style={styles.propertyImage}
+              resizeMode="cover"
+            />
+          ))}
+        </ScrollView>
+        
+        <View style={styles.imageIndicator}>
+          {property.images.map((_, index) => (
+            <View
+              key={index}
+              style={[
+                styles.indicatorDot,
+                index === currentImageIndex && styles.activeIndicatorDot
+              ]}
+            />
+          ))}
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   const renderPropertyInfo = () => (
     <View style={styles.propertyInfo}>
       <View style={styles.priceRow}>
-        <Text style={styles.price}>{formatPrice(property.price)}</Text>
+        <Text style={styles.price}>{formatPrice(property?.price || 0)}</Text>
         <Text style={styles.priceType}>
-          {property.listing_type === 'sale' ? 'For Sale' : 'For Rent'}
+          {property?.listing_type === 'sale' ? 'For Sale' : 'For Rent'}
         </Text>
       </View>
       
-      <Text style={styles.title}>{property.title}</Text>
-      <Text style={styles.address}>{property.address}</Text>
+      <Text style={styles.title}>{property?.title || 'Property Details'}</Text>
+      <Text style={styles.address}>{property?.address || 'Address not available'}</Text>
       
       <View style={styles.basicInfo}>
         <View style={styles.infoItem}>
           <Icon name="bed" size={20} color="#006AFF" />
-          <Text style={styles.infoText}>{property.bedrooms} Beds</Text>
+          <Text style={styles.infoText}>{property?.bedrooms || 0} Beds</Text>
         </View>
         <View style={styles.infoItem}>
           <Icon name="bathtub" size={20} color="#006AFF" />
-          <Text style={styles.infoText}>{property.bathrooms} Baths</Text>
+          <Text style={styles.infoText}>{property?.bathrooms || 0} Baths</Text>
         </View>
         <View style={styles.infoItem}>
           <Icon name="square-foot" size={20} color="#006AFF" />
-          <Text style={styles.infoText}>{property.area_sqm} m²</Text>
+          <Text style={styles.infoText}>{property?.area_sqm || 0} m²</Text>
         </View>
       </View>
     </View>
@@ -228,38 +242,50 @@ const PropertyDetailScreen = () => {
   const renderDescription = () => (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Description</Text>
-      <Text style={styles.description}>{property.description}</Text>
+      <Text style={styles.description}>{property?.description || 'No description available'}</Text>
     </View>
   );
 
-  const renderFeatures = () => (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Features</Text>
-      <View style={styles.featuresGrid}>
-        {Object.entries(property.features).map(([feature, hasFeature]) => (
-          <View key={feature} style={styles.featureItem}>
-            <Icon 
-              name={hasFeature ? "check-circle" : "cancel"} 
-              size={20} 
-              color={hasFeature ? "#28A745" : "#DC3545"} 
-            />
-            <Text style={styles.featureText}>
-              {feature.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-            </Text>
-          </View>
-        ))}
+  const renderFeatures = () => {
+    // Ensure we have property and features data
+    if (!property || !property.features || typeof property.features !== 'object') {
+      return (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Features</Text>
+          <Text style={styles.noDataText}>Feature information not available</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Features</Text>
+        <View style={styles.featuresGrid}>
+          {Object.entries(property.features).map(([feature, hasFeature]) => (
+            <View key={feature} style={styles.featureItem}>
+              <Icon 
+                name={hasFeature ? "check-circle" : "cancel"} 
+                size={20} 
+                color={hasFeature ? "#28A745" : "#DC3545"} 
+              />
+              <Text style={styles.featureText}>
+                {feature.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+              </Text>
+            </View>
+          ))}
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   const renderContactInfo = () => (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Contact Information</Text>
       <View style={styles.contactCard}>
         <View style={styles.contactInfo}>
-          <Text style={styles.contactName}>{property.owner.name}</Text>
-          <Text style={styles.contactPhone}>{property.owner.phone}</Text>
-          <Text style={styles.contactEmail}>{property.owner.email}</Text>
+          <Text style={styles.contactName}>{property?.owner?.name || 'Property Owner'}</Text>
+          <Text style={styles.contactPhone}>{property?.owner?.phone || 'Phone not available'}</Text>
+          <Text style={styles.contactEmail}>{property?.owner?.email || 'Email not available'}</Text>
         </View>
         <TouchableOpacity style={styles.contactButton} onPress={handleContactAgent}>
           <Icon name="phone" size={20} color="#FFFFFF" />
@@ -603,6 +629,26 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  noDataText: {
+    fontSize: 14,
+    color: '#6C757D',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingVertical: 10,
+  },
+  noImageContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F0F0F0',
+    borderRadius: 10,
+    padding: 20,
+  },
+  noImageText: {
+    fontSize: 16,
+    color: '#6C757D',
+    marginTop: 10,
   },
 });
 
