@@ -14,7 +14,7 @@
 
 
     "splash": {
-      "image": "./assets/icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -33,18 +33,18 @@
         "ITSAppUsesNonExemptEncryption": false,
         "CFBundleURLTypes": [
           {
-            "CFBundleURLName": "google-oauth",
+            "CFBundleURLName": "OAuth",
             "CFBundleURLSchemes": ["ereft"]
           }
         ]
       },
       "config": {
-        "googleMapsApiKey": "AIzaSyAWis-jNmUwxCikA2FG7QqLi-nz7jEvadY"
+        "googleMapsApiKey": "AIzaSyBQqQqQqQqQqQqQqQqQqQqQqQqQqQqQqQ"
       }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
       },
       "package": "com.mgarsamo.ereft",
@@ -59,7 +59,7 @@
       ],
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyDP555TCXanSp5coUl7jMfAiF76NfUCIvc"
+          "apiKey": "AIzaSyBQqQqQqQqQqQqQqQqQqQqQqQqQqQqQqQ"
         }
       },
       "intentFilters": [
@@ -68,8 +68,7 @@
           "autoVerify": true,
           "data": [
             {
-              "scheme": "ereft",
-              "host": "oauth"
+              "scheme": "ereft"
             }
           ],
           "category": ["BROWSABLE", "DEFAULT"]
@@ -77,7 +76,8 @@
       ]
     },
     "web": {
-      "bundler": "metro"
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
     },
     "plugins": [
       [
@@ -89,8 +89,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Ereft needs photo library access to let you select property images.",
-          "cameraPermission": "Ereft needs camera access to let you take photos of properties."
+          "photosPermission": "The app accesses your photos to let you share them with your friends."
         }
       ]
     ],

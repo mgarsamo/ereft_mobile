@@ -517,18 +517,17 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Google Sign-In with Google Identity Services
-  const loginWithGoogle = async (authCode) => {
+  // Google Sign-In with Google Identity Services - ID Token Verification
+  const loginWithGoogle = async (idToken) => {
     try {
       setIsLoading(true);
-      console.log('🔐 AuthContext: Processing Google OAuth with code');
+      console.log('🔐 AuthContext: Processing Google ID token verification');
       console.log('🔐 AuthContext: API Base URL:', API_BASE_URL);
-      console.log('🔐 AuthContext: Calling backend OAuth endpoint');
+      console.log('🔐 AuthContext: Calling backend ID token verification endpoint');
       
-      // Call backend to exchange authorization code for tokens and user info
-      const response = await api.post('/api/auth/google/', {
-        code: authCode,
-        redirect_uri: 'https://ereft.onrender.com/oauth' // Use the same redirect URI that Google accepts
+      // Call backend to verify ID token and create user session
+      const response = await api.post('/api/auth/google/verify/', {
+        id_token: idToken
       });
 
       console.log('🔐 AuthContext: Backend response received:', response.status);
@@ -546,7 +545,7 @@ export const AuthProvider = ({ children }) => {
         setUser(userData);
         setIsAuthenticated(true);
         
-        console.log('🔐 Google OAuth successful:', userData);
+        console.log('🔐 Google ID token verification successful:', userData);
         
         return {
           success: true,
@@ -559,7 +558,7 @@ export const AuthProvider = ({ children }) => {
       }
       
     } catch (error) {
-      console.error('🔐 Google OAuth error:', error);
+      console.error('🔐 Google ID token verification error:', error);
       
       let errorMessage = 'Google sign-in failed. Please try again.';
       
