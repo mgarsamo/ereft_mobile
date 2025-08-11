@@ -34,7 +34,7 @@
         "CFBundleURLTypes": [
           {
             "CFBundleURLName": "google-oauth",
-            "CFBundleURLSchemes": ["ereft"]
+            "CFBundleURLSchemes": ["com.mgarsamo.ereft"]
           }
         ]
       },

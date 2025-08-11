@@ -29,7 +29,7 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
       
       // Configure redirect URI for mobile deep linking
       const redirectUri = AuthSession.makeRedirectUri({
-        scheme: 'ereft',
+        scheme: 'com.mgarsamo.ereft',
         path: 'oauth'
       });
 

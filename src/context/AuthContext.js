@@ -528,7 +528,7 @@ export const AuthProvider = ({ children }) => {
       // Call backend to exchange authorization code for tokens and user info
       const response = await api.post('/api/auth/google/', {
         code: authCode,
-        redirect_uri: 'ereft://oauth' // Should match the redirect URI used in OAuth flow
+        redirect_uri: 'com.mgarsamo.ereft://oauth' // Should match the redirect URI used in OAuth flow
       });
 
       console.log('🔐 AuthContext: Backend response received:', response.status);
