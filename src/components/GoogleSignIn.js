@@ -1,17 +1,20 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, Platform, Alert } from 'react-native';
-import * as AuthSession from 'expo-auth-session';
+import * as WebBrowser from 'expo-web-browser';
 import * as Crypto from 'expo-crypto';
 import { useAuth } from '../context/AuthContext';
 import { ENV } from '../config/env';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+
+// Configure WebBrowser for OAuth
+WebBrowser.maybeCompleteAuthSession();
 
 const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
   const { loginWithGoogle } = useAuth();
 
   const handleGoogleSignIn = async () => {
     try {
-      console.log('🔐 GoogleSignIn: Starting direct ID token flow');
+      console.log('🔐 GoogleSignIn: Starting production-ready OAuth flow');
       
       // Generate state for security
       const state = await Crypto.digestStringAsync(
@@ -23,66 +26,71 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
       // Use web client ID for OAuth
       const clientId = ENV.GOOGLE_WEB_CLIENT_ID;
       
-      // Create redirect URI that will work with Google
-      const redirectUri = AuthSession.makeRedirectUri({
-        scheme: 'ereft',
-        path: 'oauth'
-      });
-
+      // Use the backend OAuth endpoint that Google accepts
+      const redirectUri = 'https://ereft.onrender.com/oauth';
+      
       console.log('🔐 GoogleSignIn: Client ID:', clientId);
       console.log('🔐 GoogleSignIn: Redirect URI:', redirectUri);
+      console.log('🔐 GoogleSignIn: Development mode:', __DEV__);
 
-      // Create OAuth request for ID token
-      const request = new AuthSession.AuthRequest({
-        clientId: clientId,
-        scopes: ['openid', 'profile', 'email'],
-        redirectUri: redirectUri,
-        responseType: AuthSession.ResponseType.IdToken,
-        state: state,
-        extraParams: {
-          nonce: state // Use state as nonce for additional security
+      // Build the Google OAuth URL manually for maximum control
+      const googleOAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+      googleOAuthUrl.searchParams.append('client_id', clientId);
+      googleOAuthUrl.searchParams.append('redirect_uri', redirectUri);
+      googleOAuthUrl.searchParams.append('response_type', 'code');
+      googleOAuthUrl.searchParams.append('scope', 'openid profile email');
+      googleOAuthUrl.searchParams.append('state', state);
+      googleOAuthUrl.searchParams.append('access_type', 'offline');
+      googleOAuthUrl.searchParams.append('prompt', 'consent');
+
+      const authUrl = googleOAuthUrl.toString();
+      console.log('🔐 GoogleSignIn: Auth URL generated');
+
+      // Open the OAuth URL in a web browser
+      const result = await WebBrowser.openAuthSessionAsync(
+        authUrl,
+        redirectUri,
+        {
+          showInRecents: true,
+          createTask: false
         }
-      });
+      );
 
-      console.log('🔐 GoogleSignIn: Auth request created successfully');
-
-      // Present OAuth flow
-      const result = await request.promptAsync({
-        useProxy: false,
-        showInRecents: true
-      });
-
-      console.log('🔐 GoogleSignIn: OAuth result:', result);
+      console.log('🔐 GoogleSignIn: WebBrowser result:', result);
 
       if (result.type === 'success') {
         console.log('🔐 GoogleSignIn: OAuth successful, processing result');
+        console.log('🔐 GoogleSignIn: Result URL:', result.url);
         
-        // Extract ID token and state
-        const { id_token, state: returnedState } = result.params;
+        // Parse the URL to extract the authorization code
+        const url = new URL(result.url);
+        const code = url.searchParams.get('code');
+        const returnedState = url.searchParams.get('state');
         
-        console.log('🔐 GoogleSignIn: ID token received:', id_token ? 'YES' : 'NO');
-        console.log('🔐 GoogleSignIn: State verification:', state === returnedState ? 'PASS' : 'FAIL');
+        console.log('🔐 GoogleSignIn: Extracted code:', code ? 'YES' : 'NO');
+        console.log('🔐 GoogleSignIn: Extracted state:', returnedState ? 'YES' : 'NO');
         
         // Verify state for security
         if (state !== returnedState) {
           throw new Error('OAuth state mismatch - potential security issue');
         }
 
-        if (id_token) {
-          console.log('🔐 GoogleSignIn: ID token received, calling backend for verification');
+        if (code) {
+          console.log('🔐 GoogleSignIn: Authorization code received, calling backend');
           
-          // Call backend to verify ID token and create user session
-          const backendResult = await loginWithGoogle(id_token);
+          // Call backend to exchange code for tokens and user info
+          const backendResult = await loginWithGoogle(code);
           
           if (backendResult.success) {
-            console.log('🔐 GoogleSignIn: Backend verification successful');
+            console.log('🔐 GoogleSignIn: Backend authentication successful');
             onSuccess?.(backendResult);
           } else {
-            console.error('🔐 GoogleSignIn: Backend verification failed:', backendResult.message);
+            console.error('🔐 GoogleSignIn: Backend authentication failed:', backendResult.message);
             onError?.(backendResult.message);
           }
         } else {
-          throw new Error('No ID token received from Google');
+          console.error('🔐 GoogleSignIn: No code in URL:', result.url);
+          throw new Error('No authorization code received from Google');
         }
       } else if (result.type === 'cancel') {
         console.log('🔐 GoogleSignIn: User cancelled OAuth flow');
