@@ -1,5 +1,7 @@
-// API Configuration - Production URL
-export const API_BASE_URL = 'https://ereft.onrender.com';
+// API Configuration - Environment-based URL
+import { ENV } from './env';
+
+export const API_BASE_URL = ENV.API_BASE_URL;
 
 // API Endpoints
 export const API_ENDPOINTS = {

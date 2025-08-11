@@ -522,12 +522,17 @@ export const AuthProvider = ({ children }) => {
     try {
       setIsLoading(true);
       console.log('🔐 AuthContext: Processing Google OAuth with code');
+      console.log('🔐 AuthContext: API Base URL:', API_BASE_URL);
+      console.log('🔐 AuthContext: Calling backend OAuth endpoint');
       
       // Call backend to exchange authorization code for tokens and user info
       const response = await api.post('/api/auth/google/', {
         code: authCode,
         redirect_uri: 'ereft://oauth' // Should match the redirect URI used in OAuth flow
       });
+
+      console.log('🔐 AuthContext: Backend response received:', response.status);
+      console.log('🔐 AuthContext: Response data:', response.data);
 
       if (response.data && response.data.token) {
         const { token: authToken, user: userData } = response.data;
@@ -560,12 +565,16 @@ export const AuthProvider = ({ children }) => {
       
       if (error.response) {
         // Backend error response
-        errorMessage = error.response.data?.message || errorMessage;
+        console.error('🔐 Backend error status:', error.response.status);
+        console.error('🔐 Backend error data:', error.response.data);
+        errorMessage = error.response.data?.error || error.response.data?.message || errorMessage;
       } else if (error.request) {
         // Network error
+        console.error('🔐 Network error:', error.request);
         errorMessage = 'Network error. Please check your connection.';
       } else if (error.message) {
         // Other error
+        console.error('🔐 Other error:', error.message);
         errorMessage = error.message;
       }
       

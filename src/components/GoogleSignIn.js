@@ -13,16 +13,6 @@ WebBrowser.maybeCompleteAuthSession();
 const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
   const { loginWithGoogle } = useAuth();
 
-  const getGoogleClientId = () => {
-    if (Platform.OS === 'ios') {
-      return ENV.GOOGLE_IOS_CLIENT_ID;
-    } else if (Platform.OS === 'android') {
-      return ENV.GOOGLE_ANDROID_CLIENT_ID;
-    } else {
-      return ENV.GOOGLE_WEB_CLIENT_ID;
-    }
-  };
-
   const handleGoogleSignIn = async () => {
     try {
       console.log('🔐 GoogleSignIn: Starting Google OAuth flow');
@@ -34,18 +24,19 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
         { encoding: Crypto.CryptoEncoding.HEX }
       );
 
-      // Configure OAuth request
-      const clientId = getGoogleClientId();
+      // Use iOS client ID for mobile app
+      const clientId = ENV.GOOGLE_IOS_CLIENT_ID;
+      
+      // Configure redirect URI for mobile deep linking
       const redirectUri = AuthSession.makeRedirectUri({
         scheme: 'ereft',
-        path: 'oauth',
-        projectNameForProxy: 'ereft'
+        path: 'oauth'
       });
 
       console.log('🔐 GoogleSignIn: Client ID:', clientId);
       console.log('🔐 GoogleSignIn: Redirect URI:', redirectUri);
 
-      // Create OAuth request
+      // Create OAuth request with proper Google OAuth endpoints
       const request = new AuthSession.AuthRequest({
         clientId: clientId,
         scopes: ['openid', 'profile', 'email'],
@@ -55,7 +46,11 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
         extraParams: {
           access_type: 'offline',
           prompt: 'consent'
-        }
+        },
+        // Add Google OAuth discovery endpoints
+        authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+        tokenEndpoint: 'https://oauth2.googleapis.com/token',
+        revocationEndpoint: 'https://oauth2.googleapis.com/revoke'
       });
 
       // Get authorization URL
@@ -65,7 +60,7 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
       // Present OAuth flow
       const result = await request.promptAsync({
         authUrl: authUrl,
-        useProxy: true,
+        useProxy: false, // Don't use proxy for mobile app
         showInRecents: true
       });
 
@@ -114,7 +109,7 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
 
   return (
     <TouchableOpacity style={[styles.googleButton, style]} onPress={handleGoogleSignIn}>
-      <Icon name="google" size={20} color="#FFFFFF" />
+      <Icon name="login" size={20} color="#FFFFFF" />
       <Text style={[styles.googleButtonText, textStyle]}>Continue with Google</Text>
     </TouchableOpacity>
   );
