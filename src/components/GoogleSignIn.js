@@ -1,6 +1,5 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, Platform, Alert } from 'react-native';
-import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import * as Crypto from 'expo-crypto';
 import { useAuth } from '../context/AuthContext';
@@ -27,44 +26,48 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
       // Use web client ID since Google only allows HTTPS redirects
       const clientId = ENV.GOOGLE_WEB_CLIENT_ID;
       
-      // Use a custom scheme that will redirect back to the mobile app
-      const redirectUri = AuthSession.makeRedirectUri({
-        scheme: 'ereft',
-        path: 'oauth'
-      });
-
+      // Use the backend OAuth endpoint that Google accepts
+      const redirectUri = 'https://ereft.onrender.com/oauth';
+      
       console.log('🔐 GoogleSignIn: Client ID:', clientId);
       console.log('🔐 GoogleSignIn: Redirect URI:', redirectUri);
 
-      // Create OAuth request with minimal configuration to avoid errors
-      const request = new AuthSession.AuthRequest({
-        clientId: clientId,
-        scopes: ['openid', 'profile', 'email'],
-        redirectUri: redirectUri,
-        responseType: AuthSession.ResponseType.Code,
-        state: state
-      });
+      // Build the Google OAuth URL manually
+      const googleOAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+      googleOAuthUrl.searchParams.append('client_id', clientId);
+      googleOAuthUrl.searchParams.append('redirect_uri', redirectUri);
+      googleOAuthUrl.searchParams.append('response_type', 'code');
+      googleOAuthUrl.searchParams.append('scope', 'openid profile email');
+      googleOAuthUrl.searchParams.append('state', state);
+      googleOAuthUrl.searchParams.append('access_type', 'offline');
+      googleOAuthUrl.searchParams.append('prompt', 'consent');
 
-      console.log('🔐 GoogleSignIn: Auth request created successfully');
-
-      // Get authorization URL
-      const authUrl = await request.makeAuthUrlAsync();
+      const authUrl = googleOAuthUrl.toString();
       console.log('🔐 GoogleSignIn: Auth URL generated');
 
-      // Present OAuth flow
-      const result = await request.promptAsync({
-        authUrl: authUrl,
-        useProxy: false,
-        showInRecents: true
-      });
+      // Open the OAuth URL in a web browser
+      const result = await WebBrowser.openAuthSessionAsync(
+        authUrl,
+        redirectUri,
+        {
+          showInRecents: true,
+          createTask: false
+        }
+      );
 
-      console.log('🔐 GoogleSignIn: OAuth result:', result);
+      console.log('🔐 GoogleSignIn: WebBrowser result:', result);
 
       if (result.type === 'success') {
         console.log('🔐 GoogleSignIn: OAuth successful, processing result');
+        console.log('🔐 GoogleSignIn: Result URL:', result.url);
         
-        // Extract authorization code
-        const { code, state: returnedState } = result.params;
+        // Parse the URL to extract the authorization code
+        const url = new URL(result.url);
+        const code = url.searchParams.get('code');
+        const returnedState = url.searchParams.get('state');
+        
+        console.log('🔐 GoogleSignIn: Extracted code:', code ? 'YES' : 'NO');
+        console.log('🔐 GoogleSignIn: Extracted state:', returnedState ? 'YES' : 'NO');
         
         // Verify state for security
         if (state !== returnedState) {
@@ -75,16 +78,17 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
           console.log('🔐 GoogleSignIn: Authorization code received, calling backend');
           
           // Call backend to exchange code for tokens and user info
-          const result = await loginWithGoogle(code);
+          const backendResult = await loginWithGoogle(code);
           
-          if (result.success) {
+          if (backendResult.success) {
             console.log('🔐 GoogleSignIn: Backend authentication successful');
-            onSuccess?.(result);
+            onSuccess?.(backendResult);
           } else {
-            console.error('🔐 GoogleSignIn: Backend authentication failed:', result.message);
-            onError?.(result.message);
+            console.error('🔐 GoogleSignIn: Backend authentication failed:', backendResult.message);
+            onError?.(backendResult.message);
           }
         } else {
+          console.error('🔐 GoogleSignIn: No code in URL:', result.url);
           throw new Error('No authorization code received from Google');
         }
       } else if (result.type === 'cancel') {
