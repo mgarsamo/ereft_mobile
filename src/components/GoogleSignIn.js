@@ -1,6 +1,5 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, Platform, Alert } from 'react-native';
-import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import * as Crypto from 'expo-crypto';
 import { useAuth } from '../context/AuthContext';
@@ -33,34 +32,38 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
       console.log('🔐 GoogleSignIn: Client ID:', clientId);
       console.log('🔐 GoogleSignIn: Redirect URI:', redirectUri);
 
-      // Create OAuth request with proper configuration
-      const request = new AuthSession.AuthRequest({
-        clientId: clientId,
-        scopes: ['openid', 'profile', 'email'],
-        redirectUri: redirectUri,
-        responseType: AuthSession.ResponseType.Code,
-        state: state,
-        // Remove discovery and usePKCE to avoid compatibility issues
-      });
+      // Build the Google OAuth URL manually to avoid expo-auth-session issues
+      const googleOAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+      googleOAuthUrl.searchParams.append('client_id', clientId);
+      googleOAuthUrl.searchParams.append('redirect_uri', redirectUri);
+      googleOAuthUrl.searchParams.append('response_type', 'code');
+      googleOAuthUrl.searchParams.append('scope', 'openid profile email');
+      googleOAuthUrl.searchParams.append('state', state);
+      googleOAuthUrl.searchParams.append('access_type', 'offline');
+      googleOAuthUrl.searchParams.append('prompt', 'consent');
 
-      console.log('🔐 GoogleSignIn: Auth request created successfully');
+      const authUrl = googleOAuthUrl.toString();
+      console.log('🔐 GoogleSignIn: Auth URL generated manually');
 
-      // Get authorization URL
-      const authUrl = await request.makeAuthUrlAsync();
-      console.log('🔐 GoogleSignIn: Auth URL generated');
+      // Open the OAuth URL in a web browser
+      const result = await WebBrowser.openAuthSessionAsync(
+        authUrl,
+        redirectUri,
+        {
+          showInRecents: true,
+          createTask: false
+        }
+      );
 
-      // Present OAuth flow using promptAsync (more reliable than startAsync)
-      const result = await request.promptAsync({
-        authUrl: authUrl,
-        useProxy: false, // Don't use proxy for mobile app
-        showInRecents: true
-      });
+      console.log('🔐 GoogleSignIn: WebBrowser result:', result);
 
       if (result.type === 'success') {
         console.log('🔐 GoogleSignIn: OAuth successful, processing result');
         
-        // Extract authorization code
-        const { code, state: returnedState } = result.params;
+        // Parse the URL to extract the authorization code
+        const url = new URL(result.url);
+        const code = url.searchParams.get('code');
+        const returnedState = url.searchParams.get('state');
         
         // Verify state for security
         if (state !== returnedState) {
