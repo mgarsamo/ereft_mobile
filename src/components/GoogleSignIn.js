@@ -59,11 +59,15 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
 
       if (result.type === 'success') {
         console.log('🔐 GoogleSignIn: OAuth successful, processing result');
+        console.log('🔐 GoogleSignIn: Result URL:', result.url);
         
         // Parse the URL to extract the authorization code
         const url = new URL(result.url);
         const code = url.searchParams.get('code');
         const returnedState = url.searchParams.get('state');
+        
+        console.log('🔐 GoogleSignIn: Extracted code:', code ? 'YES' : 'NO');
+        console.log('🔐 GoogleSignIn: Extracted state:', returnedState ? 'YES' : 'NO');
         
         // Verify state for security
         if (state !== returnedState) {
@@ -84,6 +88,7 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
             onError?.(result.message);
           }
         } else {
+          console.error('🔐 GoogleSignIn: No code in URL:', result.url);
           throw new Error('No authorization code received from Google');
         }
       } else if (result.type === 'cancel') {
