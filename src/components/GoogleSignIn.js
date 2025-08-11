@@ -24,14 +24,11 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
         { encoding: Crypto.CryptoEncoding.HEX }
       );
 
-      // Use iOS client ID for mobile app
-      const clientId = ENV.GOOGLE_IOS_CLIENT_ID;
+      // Use web client ID since Google only allows HTTPS redirects
+      const clientId = ENV.GOOGLE_WEB_CLIENT_ID;
       
-      // Configure redirect URI for mobile deep linking
-      const redirectUri = AuthSession.makeRedirectUri({
-        scheme: 'com.mgarsamo.ereft',
-        path: 'oauth'
-      });
+      // Configure redirect URI using a web URL that Google accepts
+      const redirectUri = 'https://ereft.onrender.com/oauth';
 
       console.log('🔐 GoogleSignIn: Client ID:', clientId);
       console.log('🔐 GoogleSignIn: Redirect URI:', redirectUri);

@@ -6,6 +6,6 @@ export const ENV = {
   GOOGLE_IOS_CLIENT_ID: '91486871350-ic7gbroh747pe9u31gqeidp45tl450i3.apps.googleusercontent.com',
   GOOGLE_WEB_CLIENT_ID: '91486871350-79fvub6490473eofjpu1jjlhncuiua44.apps.googleusercontent.com',
   
-  // Use appropriate client ID based on platform
-  GOOGLE_CLIENT_ID: '91486871350-ic7gbroh747pe9u31gqeidp45tl450i3.apps.googleusercontent.com', // iOS client for mobile app
+  // Use web client ID since Google only allows HTTPS redirects
+  GOOGLE_CLIENT_ID: '91486871350-79fvub6490473eofjpu1jjlhncuiua44.apps.googleusercontent.com', // Web client for OAuth
 };
