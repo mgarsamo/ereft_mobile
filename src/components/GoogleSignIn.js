@@ -1,5 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, Platform, Alert } from 'react-native';
+import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import * as Crypto from 'expo-crypto';
 import { useAuth } from '../context/AuthContext';
@@ -26,48 +27,44 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
       // Use web client ID since Google only allows HTTPS redirects
       const clientId = ENV.GOOGLE_WEB_CLIENT_ID;
       
-      // Use the working redirect URI that your backend now supports
-      const redirectUri = 'https://ereft.onrender.com/oauth';
+      // Use a custom scheme that will redirect back to the mobile app
+      const redirectUri = AuthSession.makeRedirectUri({
+        scheme: 'ereft',
+        path: 'oauth'
+      });
 
       console.log('🔐 GoogleSignIn: Client ID:', clientId);
       console.log('🔐 GoogleSignIn: Redirect URI:', redirectUri);
 
-      // Build the Google OAuth URL manually to avoid expo-auth-session issues
-      const googleOAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
-      googleOAuthUrl.searchParams.append('client_id', clientId);
-      googleOAuthUrl.searchParams.append('redirect_uri', redirectUri);
-      googleOAuthUrl.searchParams.append('response_type', 'code');
-      googleOAuthUrl.searchParams.append('scope', 'openid profile email');
-      googleOAuthUrl.searchParams.append('state', state);
-      googleOAuthUrl.searchParams.append('access_type', 'offline');
-      googleOAuthUrl.searchParams.append('prompt', 'consent');
+      // Create OAuth request with minimal configuration to avoid errors
+      const request = new AuthSession.AuthRequest({
+        clientId: clientId,
+        scopes: ['openid', 'profile', 'email'],
+        redirectUri: redirectUri,
+        responseType: AuthSession.ResponseType.Code,
+        state: state
+      });
 
-      const authUrl = googleOAuthUrl.toString();
-      console.log('🔐 GoogleSignIn: Auth URL generated manually');
+      console.log('🔐 GoogleSignIn: Auth request created successfully');
 
-      // Open the OAuth URL in a web browser
-      const result = await WebBrowser.openAuthSessionAsync(
-        authUrl,
-        redirectUri,
-        {
-          showInRecents: true,
-          createTask: false
-        }
-      );
+      // Get authorization URL
+      const authUrl = await request.makeAuthUrlAsync();
+      console.log('🔐 GoogleSignIn: Auth URL generated');
 
-      console.log('🔐 GoogleSignIn: WebBrowser result:', result);
+      // Present OAuth flow
+      const result = await request.promptAsync({
+        authUrl: authUrl,
+        useProxy: false,
+        showInRecents: true
+      });
+
+      console.log('🔐 GoogleSignIn: OAuth result:', result);
 
       if (result.type === 'success') {
         console.log('🔐 GoogleSignIn: OAuth successful, processing result');
-        console.log('🔐 GoogleSignIn: Result URL:', result.url);
         
-        // Parse the URL to extract the authorization code
-        const url = new URL(result.url);
-        const code = url.searchParams.get('code');
-        const returnedState = url.searchParams.get('state');
-        
-        console.log('🔐 GoogleSignIn: Extracted code:', code ? 'YES' : 'NO');
-        console.log('🔐 GoogleSignIn: Extracted state:', returnedState ? 'YES' : 'NO');
+        // Extract authorization code
+        const { code, state: returnedState } = result.params;
         
         // Verify state for security
         if (state !== returnedState) {
@@ -88,7 +85,6 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
             onError?.(result.message);
           }
         } else {
-          console.error('🔐 GoogleSignIn: No code in URL:', result.url);
           throw new Error('No authorization code received from Google');
         }
       } else if (result.type === 'cancel') {
