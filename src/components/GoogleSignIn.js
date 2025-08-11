@@ -33,20 +33,14 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
       console.log('🔐 GoogleSignIn: Client ID:', clientId);
       console.log('🔐 GoogleSignIn: Redirect URI:', redirectUri);
 
-      // Create OAuth request using discovery
-      const discovery = {
-        authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
-        tokenEndpoint: 'https://oauth2.googleapis.com/token',
-        revocationEndpoint: 'https://oauth2.googleapis.com/revoke'
-      };
-
+      // Create OAuth request with proper configuration
       const request = new AuthSession.AuthRequest({
         clientId: clientId,
         scopes: ['openid', 'profile', 'email'],
         redirectUri: redirectUri,
         responseType: AuthSession.ResponseType.Code,
         state: state,
-        discovery: discovery
+        // Remove discovery and usePKCE to avoid compatibility issues
       });
 
       console.log('🔐 GoogleSignIn: Auth request created successfully');
@@ -55,7 +49,7 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
       const authUrl = await request.makeAuthUrlAsync();
       console.log('🔐 GoogleSignIn: Auth URL generated');
 
-      // Present OAuth flow
+      // Present OAuth flow using promptAsync (more reliable than startAsync)
       const result = await request.promptAsync({
         authUrl: authUrl,
         useProxy: false, // Don't use proxy for mobile app
