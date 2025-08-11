@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { TouchableOpacity, Text, StyleSheet, Platform, Alert } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import * as Crypto from 'expo-crypto';
 import { useAuth } from '../context/AuthContext';
 import { ENV } from '../config/env';
@@ -11,6 +12,58 @@ WebBrowser.maybeCompleteAuthSession();
 
 const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
   const { loginWithGoogle } = useAuth();
+
+  // Handle deep linking for OAuth completion
+  useEffect(() => {
+    const handleDeepLink = (event) => {
+      console.log('🔐 GoogleSignIn: Deep link received:', event.url);
+      
+      try {
+        const url = new URL(event.url);
+        const code = url.searchParams.get('code');
+        const state = url.searchParams.get('state');
+        
+        if (code && state) {
+          console.log('🔐 GoogleSignIn: Authorization code received via deep link');
+          console.log('🔐 GoogleSignIn: Code:', code ? 'YES' : 'NO');
+          console.log('🔐 GoogleSignIn: State:', state ? 'YES' : 'NO');
+          
+          // Complete the OAuth flow
+          completeOAuthFlow(code, state);
+        }
+      } catch (error) {
+        console.error('🔐 GoogleSignIn: Deep link parsing error:', error);
+      }
+    };
+
+    // Listen for deep links
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+    
+    return () => {
+      subscription?.remove();
+    };
+  }, []);
+
+  // Complete OAuth flow with authorization code
+  const completeOAuthFlow = async (code, returnedState) => {
+    try {
+      console.log('🔐 GoogleSignIn: Completing OAuth flow with code');
+      
+      // Call backend to exchange code for tokens and user info
+      const backendResult = await loginWithGoogle(code);
+      
+      if (backendResult.success) {
+        console.log('🔐 GoogleSignIn: Backend authentication successful');
+        onSuccess?.(backendResult);
+      } else {
+        console.error('🔐 GoogleSignIn: Backend authentication failed:', backendResult.message);
+        onError?.(backendResult.message);
+      }
+    } catch (error) {
+      console.error('🔐 GoogleSignIn: Error completing OAuth flow:', error);
+      onError?.(error.message || 'OAuth completion failed');
+    }
+  };
 
   const handleGoogleSignIn = async () => {
     try {
@@ -26,8 +79,10 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
       // Use web client ID for OAuth
       const clientId = ENV.GOOGLE_WEB_CLIENT_ID;
       
-      // Use the backend OAuth endpoint that Google accepts
-      const redirectUri = 'https://ereft.onrender.com/oauth';
+      // Use deep link redirect URI that will bring the code back to the mobile app
+      const redirectUri = Linking.createURL('oauth', {
+        queryParams: { state: state }
+      });
       
       console.log('🔐 GoogleSignIn: Client ID:', clientId);
       console.log('🔐 GoogleSignIn: Redirect URI:', redirectUri);
@@ -76,18 +131,8 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
         }
 
         if (code) {
-          console.log('🔐 GoogleSignIn: Authorization code received, calling backend');
-          
-          // Call backend to exchange code for tokens and user info
-          const backendResult = await loginWithGoogle(code);
-          
-          if (backendResult.success) {
-            console.log('🔐 GoogleSignIn: Backend authentication successful');
-            onSuccess?.(backendResult);
-          } else {
-            console.error('🔐 GoogleSignIn: Backend authentication failed:', backendResult.message);
-            onError?.(backendResult.message);
-          }
+          console.log('🔐 GoogleSignIn: Authorization code received, completing OAuth flow');
+          await completeOAuthFlow(code, returnedState);
         } else {
           console.error('🔐 GoogleSignIn: No code in URL:', result.url);
           throw new Error('No authorization code received from Google');
