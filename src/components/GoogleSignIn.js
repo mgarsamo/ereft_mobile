@@ -36,22 +36,23 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
       console.log('🔐 GoogleSignIn: Client ID:', clientId);
       console.log('🔐 GoogleSignIn: Redirect URI:', redirectUri);
 
-      // Create OAuth request with proper Google OAuth endpoints
+      // Create OAuth request using discovery
+      const discovery = {
+        authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+        tokenEndpoint: 'https://oauth2.googleapis.com/token',
+        revocationEndpoint: 'https://oauth2.googleapis.com/revoke'
+      };
+
       const request = new AuthSession.AuthRequest({
         clientId: clientId,
         scopes: ['openid', 'profile', 'email'],
         redirectUri: redirectUri,
         responseType: AuthSession.ResponseType.Code,
         state: state,
-        extraParams: {
-          access_type: 'offline',
-          prompt: 'consent'
-        },
-        // Add Google OAuth discovery endpoints
-        authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
-        tokenEndpoint: 'https://oauth2.googleapis.com/token',
-        revocationEndpoint: 'https://oauth2.googleapis.com/revoke'
+        discovery: discovery
       });
+
+      console.log('🔐 GoogleSignIn: Auth request created successfully');
 
       // Get authorization URL
       const authUrl = await request.makeAuthUrlAsync();
