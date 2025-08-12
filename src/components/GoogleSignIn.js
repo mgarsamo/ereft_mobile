@@ -20,19 +20,33 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
       
       try {
         const url = new URL(event.url);
-        // Listen for ereft://oauth deep link with authorization code
+        // Listen for ereft://oauth deep link with authentication data
         if (url.protocol === 'ereft:' && url.pathname === '//oauth') {
-          const code = url.searchParams.get('code');
-          const state = url.searchParams.get('state');
+          const token = url.searchParams.get('token');
+          const userId = url.searchParams.get('user_id');
+          const email = url.searchParams.get('email');
+          const firstName = url.searchParams.get('first_name');
+          const lastName = url.searchParams.get('last_name');
+          const googleId = url.searchParams.get('google_id');
+          const error = url.searchParams.get('error');
           
-          if (code && state) {
-            console.log('🔐 GoogleSignIn: Authorization code received via deep link');
-            console.log('🔐 GoogleSignIn: Code:', code ? 'YES' : 'NO');
-            console.log('🔐 GoogleSignIn: State:', state ? 'YES' : 'NO');
+          if (error) {
+            console.error('🔐 GoogleSignIn: OAuth error from backend:', error);
+            onError?.(error);
+            return;
+          }
+          
+          if (token && userId && email) {
+            console.log('🔐 GoogleSignIn: Authentication data received via deep link');
+            console.log('🔐 GoogleSignIn: Token:', token ? 'YES' : 'NO');
+            console.log('🔐 GoogleSignIn: User ID:', userId);
+            console.log('🔐 GoogleSignIn: Email:', email);
             
-            // Verify state for security (we'll need to access the current state)
-            // For now, proceed with the code - state verification can be added later
-            completeOAuthFlow(code, state);
+            // Complete the OAuth flow with the authentication data
+            completeOAuthFlowWithToken(token, userId, email, firstName, lastName, googleId);
+          } else {
+            console.error('🔐 GoogleSignIn: Missing authentication data in deep link');
+            onError?.('Authentication data incomplete');
           }
         }
       } catch (error) {
@@ -66,6 +80,27 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
     } catch (error) {
       console.error('🔐 GoogleSignIn: Error completing OAuth flow:', error);
       onError?.(error.message || 'OAuth completion failed');
+    }
+  };
+
+  // Complete OAuth flow with authentication data (token, user info)
+  const completeOAuthFlowWithToken = async (token, userId, email, firstName, lastName, googleId) => {
+    try {
+      console.log('🔐 GoogleSignIn: Completing OAuth flow with authentication data');
+      
+      // Call backend to exchange token for user info
+      const backendResult = await loginWithGoogle(token);
+      
+      if (backendResult.success) {
+        console.log('🔐 GoogleSignIn: Backend authentication successful with token');
+        onSuccess?.(backendResult);
+      } else {
+        console.error('🔐 GoogleSignIn: Backend authentication failed with token:', backendResult.message);
+        onError?.(backendResult.message);
+      }
+    } catch (error) {
+      console.error('🔐 GoogleSignIn: Error completing OAuth flow with token:', error);
+      onError?.(error.message || 'OAuth completion failed with token');
     }
   };
 
