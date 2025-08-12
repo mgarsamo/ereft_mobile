@@ -21,8 +21,20 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
       
       try {
         const url = new URL(event.url);
+        console.log('🔐 GoogleSignIn: Parsed URL:', {
+          protocol: url.protocol,
+          hostname: url.hostname,
+          pathname: url.pathname,
+          search: url.search
+        });
+        
         // Listen for ereft://oauth deep link with authentication data
-        if (url.protocol === 'ereft:' && url.pathname === '//oauth') {
+        // The correct way to parse ereft://oauth is:
+        // - protocol: 'ereft:'
+        // - hostname: 'oauth' (not pathname)
+        if (url.protocol === 'ereft:' && url.hostname === 'oauth') {
+          console.log('🔐 GoogleSignIn: Valid ereft://oauth deep link detected');
+          
           const token = url.searchParams.get('token');
           const userId = url.searchParams.get('user_id');
           const email = url.searchParams.get('email');
@@ -30,6 +42,16 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
           const lastName = url.searchParams.get('last_name');
           const googleId = url.searchParams.get('google_id');
           const error = url.searchParams.get('error');
+          
+          console.log('🔐 GoogleSignIn: Deep link parameters:', {
+            token: token ? 'YES' : 'NO',
+            userId: userId ? 'YES' : 'NO',
+            email: email ? 'YES' : 'NO',
+            firstName: firstName ? 'YES' : 'NO',
+            lastName: lastName ? 'YES' : 'NO',
+            googleId: googleId ? 'YES' : 'NO',
+            error: error || 'NO'
+          });
           
           if (error) {
             console.error('🔐 GoogleSignIn: OAuth error from backend:', error);
@@ -49,6 +71,8 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
             console.error('🔐 GoogleSignIn: Missing authentication data in deep link');
             onError?.('Authentication data incomplete');
           }
+        } else {
+          console.log('🔐 GoogleSignIn: Deep link ignored - not ereft://oauth');
         }
       } catch (error) {
         console.error('🔐 GoogleSignIn: Deep link parsing error:', error);
@@ -168,11 +192,23 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
       if (result.type === 'success') {
         console.log('🔐 GoogleSignIn: OAuth successful, processing result');
         console.log('🔐 GoogleSignIn: Result URL:', result.url);
+        console.log('🔐 GoogleSignIn: Result type:', result.type);
         
         // The backend now redirects to ereft://oauth deep link
         // The deep link listener will handle the authorization code
         // We just need to wait for the deep link to be processed
-        console.log('🔐 GoogleSignIn: Waiting for deep link with authorization code...');
+        console.log('🔐 GoogleSignIn: Waiting for deep link with authentication data...');
+        
+        // Check if the result URL contains the deep link
+        if (result.url && result.url.startsWith('ereft://')) {
+          console.log('🔐 GoogleSignIn: Deep link detected in result URL!');
+          // Manually trigger the deep link handler
+          handleDeepLink({ url: result.url });
+        } else {
+          console.log('🔐 GoogleSignIn: No deep link in result URL, waiting for deep link listener...');
+          console.log('🔐 GoogleSignIn: Expected: ereft://oauth?token=...&user_id=...&email=...');
+          console.log('🔐 GoogleSignIn: Actual:', result.url);
+        }
         
         // The deep link listener will automatically call completeOAuthFlow
         // when it receives the ereft://oauth deep link
