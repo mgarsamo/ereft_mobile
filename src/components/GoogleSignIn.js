@@ -29,8 +29,12 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
       // Use the HTTPS redirect URI that Google accepts
       const redirectUri = 'https://ereft.onrender.com/oauth';
       
+      // Use the success redirect URI for WebBrowser completion
+      const successRedirectUri = 'https://ereft.onrender.com/oauth/success';
+      
       console.log('🔐 GoogleSignIn: Client ID:', clientId);
       console.log('🔐 GoogleSignIn: Redirect URI:', redirectUri);
+      console.log('🔐 GoogleSignIn: Success Redirect URI:', successRedirectUri);
       console.log('🔐 GoogleSignIn: Development mode:', __DEV__);
 
       // Build the Google OAuth URL manually for maximum control
@@ -49,7 +53,7 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
       // Open the OAuth URL in a web browser
       const result = await WebBrowser.openAuthSessionAsync(
         authUrl,
-        redirectUri,
+        successRedirectUri,  // Use the success redirect URI for completion
         {
           showInRecents: true,
           createTask: false
@@ -69,9 +73,12 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
         
         console.log('🔐 GoogleSignIn: Extracted code:', code ? 'YES' : 'NO');
         console.log('🔐 GoogleSignIn: Extracted state:', returnedState ? 'YES' : 'NO');
+        console.log('🔐 GoogleSignIn: Original state:', state);
+        console.log('🔐 GoogleSignIn: State verification:', state === returnedState ? 'PASS' : 'FAIL');
         
         // Verify state for security
         if (state !== returnedState) {
+          console.error('🔐 GoogleSignIn: State mismatch - Original:', state, 'Returned:', returnedState);
           throw new Error('OAuth state mismatch - potential security issue');
         }
 
