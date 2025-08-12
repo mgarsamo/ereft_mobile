@@ -27,7 +27,7 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
       const clientId = ENV.GOOGLE_WEB_CLIENT_ID;
       
       // Use the HTTPS redirect URI that Google accepts
-      const redirectUri = 'https://ereft.onrender.com/oauth/';
+      const redirectUri = 'https://ereft.onrender.com/oauth';
       
       console.log('🔐 GoogleSignIn: Client ID:', clientId);
       console.log('🔐 GoogleSignIn: Redirect URI:', redirectUri);
