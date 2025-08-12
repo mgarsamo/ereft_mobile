@@ -102,7 +102,25 @@ export const AuthProvider = ({ children }) => {
 
   // Initialize authentication state on app start
   useEffect(() => {
-    checkAuthStatus();
+    const initializeAuth = async () => {
+      try {
+        console.log('🔐 AuthContext: Initializing authentication system...');
+        
+        // Initialize demo users if needed
+        await UserStorage.initializeDemoUsers();
+        console.log('🔐 AuthContext: Demo users initialized');
+        
+        // Check if user is already logged in
+        await checkAuthStatus();
+        
+      } catch (error) {
+        console.error('🔐 AuthContext: Error initializing auth system:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    initializeAuth();
   }, []);
 
   // Login function - uses local user storage and backend

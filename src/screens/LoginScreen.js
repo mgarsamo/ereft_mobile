@@ -341,6 +341,22 @@ const LoginScreen = () => {
               </TouchableOpacity>
             )}
 
+            {/* Demo Credentials Info - Only show for username/email login */}
+            {loginMethod === 'username' && (
+              <View style={styles.demoInfoContainer}>
+                <Text style={styles.demoInfoTitle}>🧪 Demo Credentials:</Text>
+                <Text style={styles.demoInfoText}>
+                  Username: <Text style={styles.demoCredential}>demo</Text> | Password: <Text style={styles.demoCredential}>demo123</Text>
+                </Text>
+                <Text style={styles.demoInfoText}>
+                  Username: <Text style={styles.demoCredential}>admin</Text> | Password: <Text style={styles.demoCredential}>admin123</Text>
+                </Text>
+                <Text style={styles.demoInfoNote}>
+                  Use these credentials to test the app!
+                </Text>
+              </View>
+            )}
+
             {/* Login Button */}
             <TouchableOpacity
               style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
@@ -655,6 +671,36 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace',
   },
   testInfoNote: {
+    fontSize: 10,
+    color: '#6C757D',
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
+  demoInfoContainer: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#006AFF',
+  },
+  demoInfoTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginBottom: 4,
+  },
+  demoInfoText: {
+    fontSize: 11,
+    color: '#1A1A1A',
+    marginBottom: 2,
+    fontFamily: 'monospace',
+  },
+  demoCredential: {
+    fontWeight: '600',
+    color: '#006AFF',
+  },
+  demoInfoNote: {
     fontSize: 10,
     color: '#6C757D',
     fontStyle: 'italic',
