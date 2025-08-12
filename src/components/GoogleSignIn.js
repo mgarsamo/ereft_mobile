@@ -80,12 +80,13 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
       // Use the HTTPS redirect URI that Google accepts
       const redirectUri = 'https://ereft.onrender.com/oauth';
       
-      // Use the success redirect URI for WebBrowser completion
-      const successRedirectUri = 'https://ereft.onrender.com/oauth/success';
+      // For WebBrowser to work properly, we need to use the SAME redirect URI
+      // that Google will redirect to, not a different success URL
+      const webBrowserRedirectUri = 'https://ereft.onrender.com/oauth';
       
       console.log('🔐 GoogleSignIn: Client ID:', clientId);
       console.log('🔐 GoogleSignIn: Redirect URI:', redirectUri);
-      console.log('🔐 GoogleSignIn: Success Redirect URI:', successRedirectUri);
+      console.log('🔐 GoogleSignIn: WebBrowser Redirect URI:', webBrowserRedirectUri);
       console.log('🔐 GoogleSignIn: Development mode:', __DEV__);
 
       // Build the Google OAuth URL manually for maximum control
@@ -102,9 +103,10 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
       console.log('🔐 GoogleSignIn: Auth URL generated');
 
       // Open the OAuth URL in a web browser
+      // Use the SAME redirect URI that Google will redirect to
       const result = await WebBrowser.openAuthSessionAsync(
         authUrl,
-        successRedirectUri,  // Use the success redirect URI for completion
+        webBrowserRedirectUri,  // Use the same redirect URI for WebBrowser
         {
           showInRecents: true,
           createTask: false
@@ -117,10 +119,45 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
         console.log('🔐 GoogleSignIn: OAuth successful, processing result');
         console.log('🔐 GoogleSignIn: Result URL:', result.url);
         
-        // Parse the URL to extract the authorization code
-        const url = new URL(result.url);
-        const code = url.searchParams.get('code');
-        const returnedState = url.searchParams.get('state');
+        // The backend returns JSON, so we need to handle this differently
+        // Try to extract code from URL first (in case of redirect)
+        let code = null;
+        let returnedState = null;
+        
+        try {
+          const url = new URL(result.url);
+          code = url.searchParams.get('code');
+          returnedState = url.searchParams.get('state');
+          
+          if (code && returnedState) {
+            console.log('🔐 GoogleSignIn: Code extracted from URL parameters');
+          }
+        } catch (error) {
+          console.log('🔐 GoogleSignIn: No URL parameters found, checking for JSON response');
+        }
+        
+        // If no code in URL, the backend might have returned JSON
+        // We need to handle this case by making a request to the backend
+        if (!code) {
+          console.log('🔐 GoogleSignIn: No code in URL, checking backend for authorization code');
+          
+          try {
+            // Make a request to the backend to get the authorization code
+            const response = await fetch('https://ereft.onrender.com/oauth');
+            const data = await response.json();
+            
+            if (data.success && data.code) {
+              code = data.code;
+              returnedState = data.state;
+              console.log('🔐 GoogleSignIn: Authorization code retrieved from backend');
+            } else {
+              throw new Error('No authorization code available from backend');
+            }
+          } catch (error) {
+            console.error('🔐 GoogleSignIn: Failed to retrieve authorization code from backend:', error);
+            throw new Error('Failed to retrieve authorization code');
+          }
+        }
         
         console.log('🔐 GoogleSignIn: Extracted code:', code ? 'YES' : 'NO');
         console.log('🔐 GoogleSignIn: Extracted state:', returnedState ? 'YES' : 'NO');
@@ -137,7 +174,7 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
           console.log('🔐 GoogleSignIn: Authorization code received, completing OAuth flow');
           await completeOAuthFlow(code, returnedState);
         } else {
-          console.error('🔐 GoogleSignIn: No code in URL:', result.url);
+          console.error('🔐 GoogleSignIn: No authorization code available');
           throw new Error('No authorization code received from Google');
         }
       } else if (result.type === 'cancel') {
