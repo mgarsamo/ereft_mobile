@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import UserStorage from '../services/UserStorage';
+import GeocodingService from '../services/GeocodingService';
 
 const PropertyContext = createContext();
 
@@ -823,12 +824,49 @@ export const PropertyProvider = ({ children }) => {
     }
   };
 
-  // Add new property with proper backend integration
+  // Add new property with proper backend integration and map coordinates
   const addProperty = async (propertyData) => {
     try {
       setIsLoading(true);
       console.log('🏠 PropertyContext: Adding new property to backend...');
       console.log('🏠 PropertyContext: Property data:', propertyData);
+      
+      // Automatically geocode the address to get coordinates for map
+      let coordinates = null;
+      if (propertyData.address && !propertyData.latitude && !propertyData.longitude) {
+        try {
+          console.log('🗺️ PropertyContext: Geocoding address for map integration...');
+          coordinates = await GeocodingService.geocodeAddress(
+            propertyData.address, 
+            propertyData.city || 'Addis Ababa, Ethiopia'
+          );
+          
+          console.log('🗺️ PropertyContext: Address geocoded successfully:', coordinates);
+          
+          // Add coordinates to property data
+          propertyData.latitude = coordinates.latitude;
+          propertyData.longitude = coordinates.longitude;
+          propertyData.formatted_address = coordinates.formatted_address;
+          propertyData.place_id = coordinates.place_id;
+          
+          if (coordinates.is_fallback) {
+            console.log('🗺️ PropertyContext: Using fallback coordinates - user should verify location');
+          }
+        } catch (geocodeError) {
+          console.error('🗺️ PropertyContext: Geocoding failed, using fallback coordinates:', geocodeError);
+          
+          // Use fallback coordinates
+          const fallbackCoords = GeocodingService.getFallbackCoordinates(
+            propertyData.address, 
+            propertyData.city || 'Addis Ababa'
+          );
+          
+          propertyData.latitude = fallbackCoords.latitude;
+          propertyData.longitude = fallbackCoords.longitude;
+          propertyData.formatted_address = fallbackCoords.formatted_address;
+          propertyData.is_fallback_coordinates = true;
+        }
+      }
       
       // Try API first if authenticated
       if (api && isAuthenticated) {
@@ -901,6 +939,10 @@ export const PropertyProvider = ({ children }) => {
         owner: user || { name: 'Local User', id: 'local_user' },
         is_favorited: false,
         is_featured: false,
+        // Ensure coordinates are included for map integration
+        latitude: propertyData.latitude || coordinates?.latitude || 9.0192,
+        longitude: propertyData.longitude || coordinates?.longitude || 38.7525,
+        formatted_address: propertyData.formatted_address || coordinates?.formatted_address || propertyData.address,
       };
       
       setProperties(prev => [newProperty, ...(prev || [])]);
@@ -917,7 +959,7 @@ export const PropertyProvider = ({ children }) => {
         }
       }
       
-      console.log('🏠 PropertyContext: Property created locally:', newProperty);
+      console.log('🏠 PropertyContext: Property created locally with map coordinates:', newProperty);
       return newProperty;
     } catch (error) {
       console.error('🏠 PropertyContext: Error adding property:', error);

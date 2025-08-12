@@ -27,9 +27,8 @@ const { width, height } = Dimensions.get('window');
 const MapScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { getProperties } = useProperty();
+  const { properties, featuredProperties, getProperties, getFeaturedProperties } = useProperty();
   
-  const [properties, setProperties] = useState([]);
   const [userLocation, setUserLocation] = useState(null);
   // Set default location to Addis Ababa (specific coordinates as requested)
   const [region, setRegion] = useState({
@@ -50,80 +49,25 @@ const MapScreen = () => {
   useEffect(() => {
     loadProperties();
     // Don't auto-get user location - always default to Addis Ababa
-    console.log('MapScreen: API Key:', GOOGLE_MAPS_API_KEY);
-    console.log('MapScreen: Platform:', Platform.OS);
-    console.log('MapScreen: Defaulting to Addis Ababa location');
+    console.log('🗺️ MapScreen: API Key:', GOOGLE_MAPS_API_KEY);
+    console.log('🗺️ MapScreen: Platform:', Platform.OS);
+    console.log('🗺️ MapScreen: Defaulting to Addis Ababa location');
   }, []);
 
   const loadProperties = async () => {
     try {
-      const data = await getProperties();
-      // Real properties with coordinates for Ethiopia
-      const mockProperties = [
-        {
-          id: '1',
-          title: 'Beautiful House in Bole',
-          price: 2500000,
-          latitude: 9.0192,
-          longitude: 38.7525,
-          property_type: 'house',
-          listing_type: 'sale',
-          address: 'Bole, Addis Ababa',
-        },
-        {
-          id: '2',
-          title: 'Modern Apartment in Kazanchis',
-          price: 1800000,
-          latitude: 9.0272,
-          longitude: 38.7469,
-          property_type: 'apartment',
-          listing_type: 'sale',
-          address: 'Kazanchis, Addis Ababa',
-        },
-        {
-          id: '3',
-          title: 'Luxury Villa in Kazanchis',
-          price: 4500000,
-          latitude: 9.0272,
-          longitude: 38.7369,
-          property_type: 'house',
-          listing_type: 'sale',
-          address: 'Kazanchis, Addis Ababa',
-        },
-        {
-          id: '4',
-          title: 'Cozy Condo in Piassa',
-          price: 1200000,
-          latitude: 9.0329,
-          longitude: 38.7489,
-          property_type: 'condo',
-          listing_type: 'rent',
-          address: 'Piassa, Addis Ababa',
-        },
-        {
-          id: '5',
-          title: 'Spacious Family Home in Gerji',
-          price: 3200000,
-          latitude: 9.0250,
-          longitude: 38.7650,
-          property_type: 'house',
-          listing_type: 'sale',
-          address: 'Gerji, Addis Ababa',
-        },
-        {
-          id: '6',
-          title: 'Modern Office Space in Meskel Square',
-          price: 2800000,
-          latitude: 9.0234,
-          longitude: 38.7456,
-          property_type: 'commercial',
-          listing_type: 'sale',
-          address: 'Meskel Square, Addis Ababa',
-        },
-      ];
-      setProperties(mockProperties);
+      console.log('🗺️ MapScreen: Loading properties for map display...');
+      
+      // Load properties from PropertyContext
+      await Promise.all([
+        getProperties(),
+        getFeaturedProperties(),
+      ]);
+      
+      console.log('🗺️ MapScreen: Properties loaded successfully');
     } catch (error) {
-      console.error('Error loading properties:', error);
+      console.error('🗺️ MapScreen: Error loading properties:', error);
+      setMapError('Failed to load properties');
     }
   };
 
@@ -150,12 +94,67 @@ const MapScreen = () => {
     }
   };
 
+  // Get marker color based on property type
+  const getMarkerColor = (propertyType) => {
+    const colorMap = {
+      'house': '#006AFF',      // Blue for houses
+      'apartment': '#28A745',  // Green for apartments
+      'condo': '#FF6B35',      // Orange for condos
+      'villa': '#9C27B0',      // Purple for villas
+      'land': '#795548',       // Brown for land
+      'commercial': '#FF9800', // Orange for commercial
+      'townhouse': '#607D8B',  // Blue-grey for townhouses
+    };
+    
+    return colorMap[propertyType] || '#006AFF'; // Default to blue
+  };
+
+  // Handle marker press
   const handleMarkerPress = (property) => {
+    console.log('🗺️ MapScreen: Marker pressed for property:', property.id);
     setSelectedProperty(property);
   };
 
+  // Handle property press (from callout)
   const handlePropertyPress = (property) => {
-    navigation.navigate('PropertyDetail', { property });
+    try {
+      console.log('🗺️ MapScreen: Navigating to property detail:', property.id);
+      
+      // Ensure we have a valid property object with required fields
+      const propertyData = {
+        id: property.id || Date.now(),
+        title: property.title || 'Property',
+        price: property.price || 0,
+        location: property.location || property.address || 'Location not specified',
+        address: property.address || property.location || '',
+        city: property.city || 'Addis Ababa',
+        bedrooms: property.bedrooms || 0,
+        bathrooms: property.bathrooms || 0,
+        area_sqm: property.area_sqm || property.square_feet || 100,
+        description: property.description || 'No description available',
+        property_type: property.property_type || 'house',
+        listing_type: property.listing_type || 'sale',
+        images: property.images || [],
+        latitude: property.latitude,
+        longitude: property.longitude,
+        owner: property.owner || {
+          name: 'Property Owner',
+          phone: '+251-911-123456',
+          email: 'owner@example.com'
+        },
+        is_favorite: property.is_favorite || false,
+        created_at: property.created_at || new Date().toISOString(),
+        ...property
+      };
+      
+      navigation.navigate('PropertyDetail', { 
+        property: propertyData,
+        propertyId: propertyData.id 
+      });
+    } catch (error) {
+      console.error('🗺️ MapScreen: Error navigating to property detail:', error);
+      Alert.alert('Error', 'Unable to view property details. Please try again.');
+    }
   };
 
   const handleMyLocation = () => {
@@ -226,21 +225,6 @@ const MapScreen = () => {
     return `ETB ${price.toLocaleString()}`;
   };
 
-  const getMarkerColor = (propertyType) => {
-    switch (propertyType) {
-      case 'house':
-        return '#006AFF';
-      case 'apartment':
-        return '#28A745';
-      case 'condo':
-        return '#FF6B35';
-      case 'townhouse':
-        return '#6F42C1';
-      default:
-        return '#6C757D';
-    }
-  };
-
   const renderHeader = () => (
     <View style={styles.header}>
       <TouchableOpacity 
@@ -292,25 +276,40 @@ const MapScreen = () => {
     </Callout>
   );
 
-  const renderMapLegend = () => (
-    <View style={styles.legend}>
-      <Text style={styles.legendTitle}>Property Types</Text>
-      <View style={styles.legendItems}>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#006AFF' }]} />
-          <Text style={styles.legendText}>House</Text>
+  const renderMapLegend = () => {
+    // Count properties by type for legend
+    const propertyTypeCounts = {};
+    properties.forEach(property => {
+      const type = property.property_type || 'house';
+      propertyTypeCounts[type] = (propertyTypeCounts[type] || 0) + 1;
+    });
+
+    return (
+      <View style={styles.legend}>
+        <View style={styles.legendHeader}>
+          <Text style={styles.legendTitle}>Property Types</Text>
+          <Text style={styles.legendSubtitle}>{properties.length} properties on map</Text>
         </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#28A745' }]} />
-          <Text style={styles.legendText}>Apartment</Text>
+        <View style={styles.legendItems}>
+          {Object.entries(propertyTypeCounts).map(([type, count]) => (
+            <View key={type} style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: getMarkerColor(type) }]} />
+              <Text style={styles.legendText}>
+                {type.charAt(0).toUpperCase() + type.slice(1)} ({count})
+              </Text>
+            </View>
+          ))}
         </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#FF6B35' }]} />
-          <Text style={styles.legendText}>Condo</Text>
-        </View>
+        <TouchableOpacity 
+          style={styles.refreshButton}
+          onPress={loadProperties}
+        >
+          <Icon name="refresh" size={16} color="#006AFF" />
+          <Text style={styles.refreshButtonText}>Refresh</Text>
+        </TouchableOpacity>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -480,11 +479,20 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
+  legendHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   legendTitle: {
     fontSize: 14,
     fontWeight: 'bold',
     color: '#1A1A1A',
-    marginBottom: 8,
+  },
+  legendSubtitle: {
+    fontSize: 12,
+    color: '#6C757D',
   },
   legendItems: {
     gap: 6,
@@ -502,6 +510,22 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: 12,
     color: '#1A1A1A',
+  },
+  refreshButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 8,
+  },
+  refreshButtonText: {
+    marginLeft: 5,
+    fontSize: 14,
+    color: '#006AFF',
+    fontWeight: '600',
   },
   // Modal styles
   modalContainer: {

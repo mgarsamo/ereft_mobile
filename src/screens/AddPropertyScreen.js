@@ -14,9 +14,11 @@ import {
 import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import * as ImagePicker from 'expo-image-picker';
+import MapView, { Marker } from 'react-native-maps';
 import { useProperty } from '../context/PropertyContext';
 import { useAuth } from '../context/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import GeocodingService from '../services/GeocodingService';
 
 const { width } = Dimensions.get('window');
 
@@ -50,6 +52,52 @@ const AddPropertyScreen = () => {
 
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [mapPreview, setMapPreview] = useState(null);
+  const [isGeocoding, setIsGeocoding] = useState(false);
+
+  // Update map preview when address changes
+  useEffect(() => {
+    if (formData.address && formData.city) {
+      updateMapPreview();
+    }
+  }, [formData.address, formData.city]);
+
+  // Update map preview with geocoded coordinates
+  const updateMapPreview = async () => {
+    if (!formData.address || !formData.city) return;
+    
+    try {
+      setIsGeocoding(true);
+      console.log('🗺️ AddPropertyScreen: Updating map preview for address:', formData.address);
+      
+      const coordinates = await GeocodingService.geocodeAddress(formData.address, formData.city);
+      
+      setMapPreview({
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+        address: coordinates.formatted_address,
+        isFallback: coordinates.is_fallback,
+      });
+      
+      console.log('🗺️ AddPropertyScreen: Map preview updated:', coordinates);
+    } catch (error) {
+      console.error('🗺️ AddPropertyScreen: Error updating map preview:', error);
+      // Use fallback coordinates
+      const fallbackCoords = GeocodingService.getFallbackCoordinates(formData.address, formData.city);
+      setMapPreview({
+        latitude: fallbackCoords.latitude,
+        longitude: fallbackCoords.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+        address: fallbackCoords.formatted_address,
+        isFallback: true,
+      });
+    } finally {
+      setIsGeocoding(false);
+    }
+  };
 
   // Initialize form data for edit mode
   useEffect(() => {
@@ -657,6 +705,53 @@ const AddPropertyScreen = () => {
 
           {renderImageGallery()}
 
+          {/* Map Preview Section */}
+          {mapPreview && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>
+                📍 Map Location Preview
+                {mapPreview.isFallback && (
+                  <Text style={styles.fallbackWarning}> (Approximate Location)</Text>
+                )}
+              </Text>
+              
+              <View style={styles.mapContainer}>
+                <MapView
+                  style={styles.mapPreview}
+                  region={mapPreview}
+                  scrollEnabled={false}
+                  zoomEnabled={false}
+                  rotateEnabled={false}
+                  pitchEnabled={false}
+                  showsUserLocation={false}
+                  showsMyLocationButton={false}
+                >
+                  <Marker
+                    coordinate={{
+                      latitude: mapPreview.latitude,
+                      longitude: mapPreview.longitude,
+                    }}
+                    pinColor="#006AFF"
+                    title="Property Location"
+                    description={mapPreview.address}
+                  />
+                </MapView>
+                
+                <View style={styles.mapInfo}>
+                  <Text style={styles.mapAddress}>{mapPreview.address}</Text>
+                  <Text style={styles.mapCoordinates}>
+                    {mapPreview.latitude.toFixed(6)}, {mapPreview.longitude.toFixed(6)}
+                  </Text>
+                  {mapPreview.isFallback && (
+                    <Text style={styles.fallbackNote}>
+                      ⚠️ Location is approximate. Please verify the exact location.
+                    </Text>
+                  )}
+                </View>
+              </View>
+            </View>
+          )}
+
           <View style={styles.submitSection}>
             <TouchableOpacity 
               style={[styles.submitButton, submitting && styles.submitButtonDisabled]} 
@@ -915,6 +1010,46 @@ const styles = StyleSheet.create({
     color: '#6C757D',
     marginTop: 10,
     textAlign: 'center',
+  },
+  mapContainer: {
+    width: '100%',
+    height: 200, // Fixed height for the map preview
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#E0E0E0',
+    marginTop: 15,
+  },
+  mapPreview: {
+    width: '100%',
+    height: '100%',
+  },
+  mapInfo: {
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: 8,
+    padding: 8,
+  },
+  mapAddress: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  mapCoordinates: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    marginTop: 2,
+  },
+  fallbackWarning: {
+    fontSize: 12,
+    color: '#FFC107',
+    fontWeight: 'bold',
+  },
+  fallbackNote: {
+    fontSize: 12,
+    color: '#FFC107',
+    marginTop: 5,
   },
 });
 
