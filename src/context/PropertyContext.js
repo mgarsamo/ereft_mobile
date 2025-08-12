@@ -27,24 +27,98 @@ export const PropertyProvider = ({ children }) => {
     average_price: 2500000
   });
 
+  // Get property statistics from backend
+  const getPropertyStats = async () => {
+    try {
+      console.log('📊 PropertyContext: Fetching property statistics from backend...');
+      
+      if (api && isAuthenticated) {
+        try {
+          const response = await api.get('/api/properties/stats/');
+          console.log('📊 PropertyContext: Stats API response status:', response.status);
+          console.log('📊 PropertyContext: Stats data:', response.data);
+          
+          if (response.data) {
+            const newStats = {
+              total_properties: response.data.total_properties || 0,
+              for_sale: response.data.for_sale || 0,
+              for_rent: response.data.for_rent || 0,
+              average_price: response.data.average_price || 0,
+              total_views: response.data.total_views || 0,
+              featured_properties: response.data.featured_properties || 0,
+            };
+            
+            console.log('📊 PropertyContext: Setting real stats from backend:', newStats);
+            setPropertyStats(newStats);
+            return newStats;
+          }
+        } catch (apiError) {
+          console.error('📊 PropertyContext: Stats API failed:', apiError.message);
+          
+          // Fall back to demo stats
+          console.log('📊 PropertyContext: Using demo stats as fallback');
+          const demoStats = getDemoPropertyStats();
+          setPropertyStats(demoStats);
+          return demoStats;
+        }
+      } else {
+        console.log('📊 PropertyContext: Not authenticated, using demo stats');
+        // Not authenticated, use demo stats
+        const demoStats = getDemoPropertyStats();
+        setPropertyStats(demoStats);
+        return demoStats;
+      }
+    } catch (error) {
+      console.error('📊 PropertyContext: Error fetching property stats:', error);
+      
+      // Return demo stats as fallback
+      const demoStats = getDemoPropertyStats();
+      setPropertyStats(demoStats);
+      return demoStats;
+    }
+  };
+
+  // Demo property statistics
+  const getDemoPropertyStats = () => {
+    return {
+      total_properties: 150,
+      for_sale: 89,
+      for_rent: 61,
+      average_price: 2500000,
+      total_views: 12500,
+      featured_properties: 12,
+    };
+  };
+
   // Initialize properties and featured properties on mount
   useEffect(() => {
     const initializeData = async () => {
       try {
-        // Initialize with demo data immediately
+        console.log('🏠 PropertyContext: Initializing property data...');
+        
+        // Initialize with demo data immediately for fast UI response
         const demoProperties = getDemoProperties();
         const demoFeatured = getDemoFeaturedProperties();
+        const demoStats = getDemoPropertyStats();
         
         setProperties(demoProperties);
         setFeaturedProperties(demoFeatured);
+        setPropertyStats(demoStats);
         
         // Then try to fetch real data if authenticated
         if (isAuthenticated) {
-          await getProperties();
-          await getFeaturedProperties();
+          console.log('🏠 PropertyContext: User authenticated, fetching real data...');
+          await Promise.all([
+            getProperties(),
+            getFeaturedProperties(),
+            getPropertyStats(),
+            getFavorites(),
+          ]);
+        } else {
+          console.log('🏠 PropertyContext: User not authenticated, using demo data');
         }
       } catch (error) {
-        console.error('Error initializing property data:', error);
+        console.error('🏠 PropertyContext: Error initializing property data:', error);
         // Keep demo data if initialization fails
       }
     };
@@ -413,40 +487,66 @@ export const PropertyProvider = ({ children }) => {
     }
   };
 
-  // Search properties
+  // Search properties with proper backend integration
   const searchProperties = async (query, filters = {}) => {
     try {
       setIsLoading(true);
+      console.log('🔍 PropertyContext: Searching properties with query:', query, 'filters:', filters);
       
-      // Always provide immediate response with demo data
-      const demoProperties = getDemoProperties();
-      const filteredDemo = demoProperties.filter(property => 
-        property.title.toLowerCase().includes((query || '').toLowerCase()) ||
-        property.location.toLowerCase().includes((query || '').toLowerCase())
-      );
-      
-      setSearchResults(filteredDemo);
-      setSearchFilters({ query, ...filters });
-      
-      // Try API only if authenticated and have backend token
-      if (api && isAuthenticated && token && !token.startsWith('ereft_token_')) {
+      // Try API first if authenticated
+      if (api && isAuthenticated) {
         try {
-          const params = { query, ...filters };
+          const params = { 
+            search: query || '',
+            page: 1,
+            ...filters 
+          };
+          console.log('🔍 PropertyContext: API search params:', params);
+          
           const response = await api.get('/api/properties/search/', { params });
+          console.log('🔍 PropertyContext: Search API response status:', response.status);
+          console.log('🔍 PropertyContext: Search results count:', response.data?.results?.length || response.data?.length || 0);
+          
           if (response.data && (response.data.results || response.data.length > 0)) {
-            setSearchResults(response.data.results || response.data);
-            return response.data;
+            const searchResults = response.data.results || response.data;
+            console.log('🔍 PropertyContext: Setting search results from backend:', searchResults.length);
+            setSearchResults(searchResults);
+            setSearchFilters({ query, ...filters });
+            return { results: searchResults, count: searchResults.length };
+          } else {
+            console.log('🔍 PropertyContext: No search results from API, using demo data');
+            // No results from API, use demo data
+            const demoProperties = getDemoProperties();
+            const filteredDemo = filterDemoProperties(demoProperties, query, filters);
+            setSearchResults(filteredDemo);
+            setSearchFilters({ query, ...filters });
+            return { results: filteredDemo, count: filteredDemo.length };
           }
         } catch (apiError) {
-          console.error('API search failed, using demo data:', apiError.message);
-          // Keep demo search results if API fails
+          console.error('🔍 PropertyContext: Search API failed:', apiError.message);
+          console.error('🔍 PropertyContext: Search API error details:', apiError.response?.data);
+          
+          // Fall back to demo data with filtering
+          console.log('🔍 PropertyContext: Falling back to demo search');
+          const demoProperties = getDemoProperties();
+          const filteredDemo = filterDemoProperties(demoProperties, query, filters);
+          setSearchResults(filteredDemo);
+          setSearchFilters({ query, ...filters });
+          return { results: filteredDemo, count: filteredDemo.length };
         }
+      } else {
+        // Not authenticated, use demo data with filtering
+        console.log('🔍 PropertyContext: Not authenticated, using demo search');
+        const demoProperties = getDemoProperties();
+        const filteredDemo = filterDemoProperties(demoProperties, query, filters);
+        setSearchResults(filteredDemo);
+        setSearchFilters({ query, ...filters });
+        return { results: filteredDemo, count: filteredDemo.length };
       }
-      
-      return { results: filteredDemo, count: filteredDemo.length };
     } catch (error) {
-      console.error('Error searching properties:', error);
-      // Return demo data instead of throwing
+      console.error('🔍 PropertyContext: Error searching properties:', error);
+      
+      // Return demo data as fallback
       const fallbackResults = getDemoProperties().slice(0, 5);
       setSearchResults(fallbackResults);
       return { results: fallbackResults, count: fallbackResults.length };
@@ -455,166 +555,270 @@ export const PropertyProvider = ({ children }) => {
     }
   };
 
-  // Get user favorites
+  // Helper function to filter demo properties
+  const filterDemoProperties = (properties, query, filters) => {
+    let filtered = properties;
+    
+    // Text search
+    if (query) {
+      const searchTerm = query.toLowerCase();
+      filtered = filtered.filter(property => 
+        property.title.toLowerCase().includes(searchTerm) ||
+        property.location.toLowerCase().includes(searchTerm) ||
+        property.address.toLowerCase().includes(searchTerm) ||
+        property.city.toLowerCase().includes(searchTerm) ||
+        property.description.toLowerCase().includes(searchTerm)
+      );
+    }
+    
+    // Property type filter
+    if (filters.propertyType) {
+      filtered = filtered.filter(property => 
+        property.property_type === filters.propertyType.toLowerCase()
+      );
+    }
+    
+    // Listing type filter
+    if (filters.listingType) {
+      filtered = filtered.filter(property => 
+        property.listing_type === filters.listingType.toLowerCase()
+      );
+    }
+    
+    // Price range filter
+    if (filters.minPrice || filters.maxPrice) {
+      filtered = filtered.filter(property => {
+        const price = property.price;
+        if (filters.minPrice && price < filters.minPrice) return false;
+        if (filters.maxPrice && price > filters.maxPrice) return false;
+        return true;
+      });
+    }
+    
+    // Bedrooms filter
+    if (filters.bedrooms) {
+      filtered = filtered.filter(property => 
+        property.bedrooms >= filters.bedrooms
+      );
+    }
+    
+    // Bathrooms filter
+    if (filters.bathrooms) {
+      filtered = filtered.filter(property => 
+        property.bathrooms >= filters.bathrooms
+      );
+    }
+    
+    // Area filter
+    if (filters.minArea || filters.maxArea) {
+      filtered = filtered.filter(property => {
+        const area = property.area_sqm;
+        if (filters.minArea && area < filters.minArea) return false;
+        if (filters.maxArea && area > filters.maxArea) return false;
+        return true;
+      });
+    }
+    
+    // Location filter
+    if (filters.city) {
+      filtered = filtered.filter(property => 
+        property.city.toLowerCase().includes(filters.city.toLowerCase())
+      );
+    }
+    
+    return filtered;
+  };
+
+  // Get user favorites with proper backend integration
   const getFavorites = async () => {
     try {
-      // Only try API if authenticated and have a backend token (not local ereft_token)
-      if (api && isAuthenticated && token && !token.startsWith('ereft_token_')) {
+      console.log('❤️ PropertyContext: Fetching user favorites from backend...');
+      
+      if (api && isAuthenticated && user?.id) {
         try {
           const response = await api.get('/api/favorites/');
+          console.log('❤️ PropertyContext: Favorites API response status:', response.status);
+          console.log('❤️ PropertyContext: Favorites count:', response.data?.results?.length || response.data?.length || 0);
+          
           if (response.data && (response.data.results || response.data.length > 0)) {
-            setFavorites(response.data.results || response.data);
-            return response.data;
+            const favorites = response.data.results || response.data;
+            console.log('❤️ PropertyContext: Setting favorites from backend:', favorites.length);
+            setFavorites(favorites);
+            return favorites;
+          } else {
+            console.log('❤️ PropertyContext: No favorites from API');
+            setFavorites([]);
+            return [];
           }
         } catch (apiError) {
-          console.error('Error fetching favorites:', apiError);
+          console.error('❤️ PropertyContext: Favorites API failed:', apiError.message);
+          
           // Fall back to demo favorites if API fails
+          console.log('❤️ PropertyContext: Using demo favorites as fallback');
+          const demoFavorites = getDemoFavorites();
+          setFavorites(demoFavorites);
+          return demoFavorites;
         }
+      } else {
+        console.log('❤️ PropertyContext: Not authenticated, using demo favorites');
+        // Not authenticated, use demo favorites
+        const demoFavorites = getDemoFavorites();
+        setFavorites(demoFavorites);
+        return demoFavorites;
       }
+    } catch (error) {
+      console.error('❤️ PropertyContext: Error fetching favorites:', error);
       
       // Return demo favorites as fallback
-      const demoFavorites = [
-        {
-          id: '1',
-          property: {
-            id: 1,
-            title: 'Beautiful House in Bole',
-            price: 2500000,
-            location: 'Bole, Addis Ababa',
-            bedrooms: 4,
-            bathrooms: 3,
-            area_sqm: 250,
-            property_type: 'house',
-            listing_type: 'sale',
-            images: ['https://via.placeholder.com/300x200/006AFF/FFFFFF?text=House+1'],
-          },
-          created_at: '2024-01-15T00:00:00Z',
-        },
-        {
-          id: '2',
-          property: {
-            id: 2,
-            title: 'Modern Apartment in Kazanchis',
-            price: 1800000,
-            location: 'Kazanchis, Addis Ababa',
-            bedrooms: 3,
-            bathrooms: 2,
-            area_sqm: 180,
-            property_type: 'apartment',
-            listing_type: 'sale',
-            images: ['https://via.placeholder.com/300x200/FF6B35/FFFFFF?text=Apartment+1'],
-          },
-          created_at: '2024-01-10T00:00:00Z',
-        },
-      ];
-      
+      const demoFavorites = getDemoFavorites();
       setFavorites(demoFavorites);
-      return { results: demoFavorites, count: demoFavorites.length };
-    } catch (error) {
-      console.error('Error in getFavorites:', error);
-      // Return empty array if everything fails
-      setFavorites([]);
-      return { results: [], count: 0 };
+      return demoFavorites;
     }
   };
 
-  // Add/remove favorite
+  // Demo favorites data
+  const getDemoFavorites = () => {
+    return [
+      {
+        id: '1',
+        property: {
+          id: 1,
+          title: 'Beautiful House in Bole',
+          price: 2500000,
+          location: 'Bole, Addis Ababa',
+          address: 'Bole District, Addis Ababa',
+          city: 'Addis Ababa',
+          bedrooms: 4,
+          bathrooms: 3,
+          area_sqm: 250,
+          property_type: 'house',
+          listing_type: 'sale',
+          images: ['https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800'],
+        },
+        created_at: '2024-01-15T00:00:00Z',
+      },
+      {
+        id: '2',
+        property: {
+          id: 2,
+          title: 'Modern Apartment in Kazanchis',
+          price: 1800000,
+          location: 'Kazanchis, Addis Ababa',
+          address: 'Kazanchis District, Addis Ababa',
+          city: 'Addis Ababa',
+          bedrooms: 3,
+          bathrooms: 2,
+          area_sqm: 120,
+          property_type: 'apartment',
+          listing_type: 'sale',
+          images: ['https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=800'],
+        },
+        created_at: '2024-01-10T00:00:00Z',
+      }
+    ];
+  };
+
+  // Toggle favorite with proper backend integration
   const toggleFavorite = async (propertyId) => {
     try {
-      // Only try API if authenticated and have a backend token (not local ereft_token)
-      if (api && isAuthenticated && token && !token.startsWith('ereft_token_')) {
+      console.log('❤️ PropertyContext: Toggling favorite for property:', propertyId);
+      
+      if (api && isAuthenticated && user?.id) {
         try {
-          const response = await api.post(`/api/properties/${propertyId}/favorite/`);
+          // Check if property is already favorited
+          const isFavorited = favorites.some(fav => fav.property.id === propertyId);
           
-          // Update favorites list
-          if (response.data.status === 'added to favorites') {
-            const property = properties.find(p => p.id === propertyId) || 
-                            searchResults.find(p => p.id === propertyId);
-            if (property) {
-              setFavorites(prev => [...prev, { property, created_at: new Date().toISOString() }]);
-            }
-          } else {
+          if (isFavorited) {
+            // Remove from favorites
+            console.log('❤️ PropertyContext: Removing property from favorites');
+            const response = await api.delete(`/api/favorites/${propertyId}/`);
+            console.log('❤️ PropertyContext: Remove favorite response:', response.status);
+            
+            // Update local state
             setFavorites(prev => prev.filter(fav => fav.property.id !== propertyId));
+            
+            // Update property is_favorite status
+            setProperties(prev => 
+              prev.map(p => p.id === propertyId ? { ...p, is_favorite: false } : p)
+            );
+            
+            return { success: true, isFavorited: false };
+          } else {
+            // Add to favorites
+            console.log('❤️ PropertyContext: Adding property to favorites');
+            const response = await api.post('/api/favorites/', { property: propertyId });
+            console.log('❤️ PropertyContext: Add favorite response:', response.status);
+            
+            // Get the property details
+            const property = properties.find(p => p.id === propertyId);
+            if (property) {
+              const newFavorite = {
+                id: response.data.id || `fav_${Date.now()}`,
+                property: property,
+                created_at: new Date().toISOString(),
+              };
+              
+              // Update local state
+              setFavorites(prev => [newFavorite, ...prev]);
+              
+              // Update property is_favorite status
+              setProperties(prev => 
+                prev.map(p => p.id === propertyId ? { ...p, is_favorite: true } : p)
+              );
+            }
+            
+            return { success: true, isFavorited: true };
           }
-          
-          // Update property is_favorited status
-          setProperties(prev => 
-            prev.map(p => p.id === propertyId ? { ...p, is_favorited: !p.is_favorited } : p)
-          );
-          setSearchResults(prev => 
-            prev.map(p => p.id === propertyId ? { ...p, is_favorited: !p.is_favorited } : p)
-          );
-          
-          return response.data;
         } catch (apiError) {
-          console.error('API favorite toggle failed:', apiError);
+          console.error('❤️ PropertyContext: Favorites API failed:', apiError.message);
+          
           // Fall back to local handling
+          console.log('❤️ PropertyContext: Falling back to local favorite toggle');
+          return toggleFavoriteLocal(propertyId);
         }
+      } else {
+        // Not authenticated, use local handling
+        console.log('❤️ PropertyContext: Not authenticated, using local favorite toggle');
+        return toggleFavoriteLocal(propertyId);
       }
-      
-      // Local fallback for demo mode or when API fails
-      const safeProperties = properties || getDemoProperties();
-      const safeSearchResults = searchResults || [];
-      
-      const property = safeProperties.find(p => p.id === propertyId) || 
-                      safeSearchResults.find(p => p.id === propertyId);
-      
-      if (property) {
-        // Toggle favorite status locally
-        const isCurrentlyFavorited = favorites.some(fav => 
-          fav.property?.id === propertyId || fav.id === propertyId
-        );
-        
-        if (isCurrentlyFavorited) {
-          // Remove from favorites
-          setFavorites(prev => prev.filter(fav => 
-            fav.property?.id !== propertyId && fav.id !== propertyId
-          ));
-          
-          // Update user stats - decrease favorites count
-          if (user && user.id) {
-            try {
-              await UserStorage.updateUserStats(user.id, {
-                favorites_count: -1
-              });
-            } catch (error) {
-              console.error('Error updating user stats:', error);
-            }
-          }
-        } else {
-          // Add to favorites
-          setFavorites(prev => [...prev, { 
-            id: `fav_${propertyId}_${Date.now()}`,
-            property, 
-            created_at: new Date().toISOString() 
-          }]);
-          
-          // Update user stats - increase favorites count
-          if (user && user.id) {
-            try {
-              await UserStorage.updateUserStats(user.id, {
-                favorites_count: 1
-              });
-            } catch (error) {
-              console.error('Error updating user stats:', error);
-            }
-          }
-        }
-        
-        // Update property is_favorited status
-        setProperties(prev => 
-          prev ? prev.map(p => p.id === propertyId ? { ...p, is_favorited: !isCurrentlyFavorited } : p) : []
-        );
-        setSearchResults(prev => 
-          prev ? prev.map(p => p.id === propertyId ? { ...p, is_favorited: !isCurrentlyFavorited } : p) : []
-        );
-        
-        return { status: isCurrentlyFavorited ? 'removed from favorites' : 'added to favorites' };
-      }
-      
-      return { status: 'property not found' };
     } catch (error) {
-      console.error('Error toggling favorite:', error);
+      console.error('❤️ PropertyContext: Error toggling favorite:', error);
+      throw error;
+    }
+  };
+
+  // Local favorite toggle for demo mode
+  const toggleFavoriteLocal = (propertyId) => {
+    try {
+      const isFavorited = favorites.some(fav => fav.property.id === propertyId);
+      
+      if (isFavorited) {
+        // Remove from favorites
+        setFavorites(prev => prev.filter(fav => fav.property.id !== propertyId));
+        setProperties(prev => 
+          prev.map(p => p.id === propertyId ? { ...p, is_favorite: false } : p)
+        );
+        return { success: true, isFavorited: false };
+      } else {
+        // Add to favorites
+        const property = properties.find(p => p.id === propertyId);
+        if (property) {
+          const newFavorite = {
+            id: `local_fav_${Date.now()}`,
+            property: property,
+            created_at: new Date().toISOString(),
+          };
+          
+          setFavorites(prev => [newFavorite, ...prev]);
+          setProperties(prev => 
+            prev.map(p => p.id === propertyId ? { ...p, is_favorite: true } : p)
+          );
+        }
+        
+        return { success: true, isFavorited: true };
+      }
+    } catch (error) {
+      console.error('❤️ PropertyContext: Error in local favorite toggle:', error);
       throw error;
     }
   };
@@ -866,46 +1070,6 @@ export const PropertyProvider = ({ children }) => {
     }
   };
 
-  // Get property statistics
-  const getPropertyStats = async () => {
-    try {
-      // Try API first if authenticated and have backend token
-      if (api && isAuthenticated && token && !token.startsWith('ereft_token_')) {
-        try {
-          const response = await api.get('/api/properties/stats/');
-          if (response.data) {
-            setPropertyStats(response.data);
-            return response.data;
-          }
-        } catch (apiError) {
-          console.error('API stats failed:', apiError.message);
-          // Fall back to demo stats
-        }
-      }
-      
-      // Return default stats instead of throwing
-      const defaultStats = {
-        total_properties: 150,
-        for_sale: 89,
-        for_rent: 61,
-        average_price: 2500000
-      };
-      setPropertyStats(defaultStats);
-      return defaultStats;
-    } catch (error) {
-      console.error('Error fetching property stats:', error);
-      // Return default stats instead of throwing
-      const fallbackStats = {
-        total_properties: 150,
-        for_sale: 89,
-        for_rent: 61,
-        average_price: 2500000
-      };
-      setPropertyStats(fallbackStats);
-      return fallbackStats;
-    }
-  };
-
   // Track property view
   const trackPropertyView = async (propertyId) => {
     try {
@@ -1000,6 +1164,8 @@ export const PropertyProvider = ({ children }) => {
     deleteProperty,
     getUserProperties,
     toggleFavorite,
+    getFavorites,
+    getPropertyStats,
     clearSearchResults,
     setSearchFilters,
   };
