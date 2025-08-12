@@ -6,6 +6,7 @@ import * as Crypto from 'expo-crypto';
 import { useAuth } from '../context/AuthContext';
 import { ENV } from '../config/env';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Configure WebBrowser for OAuth
 WebBrowser.maybeCompleteAuthSession();
@@ -87,17 +88,25 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
   const completeOAuthFlowWithToken = async (token, userId, email, firstName, lastName, googleId) => {
     try {
       console.log('🔐 GoogleSignIn: Completing OAuth flow with authentication data');
+      console.log('🔐 GoogleSignIn: Real user data received:', { userId, email, firstName, lastName, googleId });
       
-      // Call backend to exchange token for user info
-      const backendResult = await loginWithGoogle(token);
+      // Use the AuthContext function to complete the OAuth flow
+      const { completeGoogleOAuth } = useAuth();
       
-      if (backendResult.success) {
-        console.log('🔐 GoogleSignIn: Backend authentication successful with token');
-        onSuccess?.(backendResult);
+      if (completeGoogleOAuth) {
+        const result = await completeGoogleOAuth(token, userId, email, firstName, lastName, googleId);
+        
+        if (result.success) {
+          console.log('🔐 GoogleSignIn: OAuth completed successfully with real user data');
+          onSuccess?.(result);
+        } else {
+          console.error('🔐 GoogleSignIn: OAuth completion failed:', result.message);
+          onError?.(result.message);
+        }
       } else {
-        console.error('🔐 GoogleSignIn: Backend authentication failed with token:', backendResult.message);
-        onError?.(backendResult.message);
+        throw new Error('completeGoogleOAuth function not available in AuthContext');
       }
+      
     } catch (error) {
       console.error('🔐 GoogleSignIn: Error completing OAuth flow with token:', error);
       onError?.(error.message || 'OAuth completion failed with token');

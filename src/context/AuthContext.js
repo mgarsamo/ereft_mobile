@@ -588,6 +588,54 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Complete Google OAuth with user data from backend
+  const completeGoogleOAuth = async (token, userId, email, firstName, lastName, googleId) => {
+    try {
+      setIsLoading(true);
+      console.log('🔐 AuthContext: Completing Google OAuth with user data from backend');
+      
+      // Create user data object from the backend data
+      const userData = {
+        id: userId,
+        username: `google_${email.split('@')[0]}`,
+        email: email,
+        first_name: firstName || '',
+        last_name: lastName || '',
+        provider: 'google',
+        google_id: googleId
+      };
+      
+      console.log('🔐 AuthContext: User data from backend:', userData);
+      
+      // Store token and user data locally
+      await AsyncStorage.setItem('authToken', token);
+      await AsyncStorage.setItem('user', JSON.stringify(userData));
+      
+      // Update state
+      setToken(token);
+      setUser(userData);
+      setIsAuthenticated(true);
+      
+      console.log('🔐 Google OAuth completed successfully with real user data');
+      
+      return {
+        success: true,
+        message: 'Google sign-in successful!',
+        user: userData,
+        token: token
+      };
+      
+    } catch (error) {
+      console.error('🔐 Google OAuth completion error:', error);
+      return {
+        success: false,
+        message: error.message || 'Failed to complete Google sign-in',
+      };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const value = {
     user,
     token,
@@ -603,6 +651,7 @@ export const AuthProvider = ({ children }) => {
     verifyPhoneCode,
     resendVerificationCode,
     loginWithGoogle,
+    completeGoogleOAuth, // Add the new function
     api,
   };
 
