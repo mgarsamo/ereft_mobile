@@ -208,6 +208,38 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
           console.log('🔐 GoogleSignIn: No deep link in result URL, waiting for deep link listener...');
           console.log('🔐 GoogleSignIn: Expected: ereft://oauth?token=...&user_id=...&email=...');
           console.log('🔐 GoogleSignIn: Actual:', result.url);
+          
+          // FALLBACK: If no deep link in result URL, try to extract data from the HTML response
+          // This handles cases where the backend returns HTML instead of redirecting
+          try {
+            console.log('🔐 GoogleSignIn: Attempting to extract auth data from HTML response...');
+            
+            // Make a request to the backend to get the current OAuth status
+            const response = await fetch('https://ereft.onrender.com/oauth');
+            const htmlText = await response.text();
+            
+            // Look for authentication data in the HTML
+            const tokenMatch = htmlText.match(/Authentication Token:\s*([a-f0-9]+)/);
+            const userIdMatch = htmlText.match(/User ID:\s*(\d+)/);
+            const emailMatch = htmlText.match(/Email:\s*([^\s<]+)/);
+            
+            if (tokenMatch && userIdMatch && emailMatch) {
+              const token = tokenMatch[1];
+              const userId = userIdMatch[1];
+              const email = emailMatch[1];
+              
+              console.log('🔐 GoogleSignIn: Extracted auth data from HTML:', { token: token ? 'YES' : 'NO', userId, email });
+              
+              // Complete the OAuth flow with extracted data
+              completeOAuthFlowWithToken(token, userId, email, '', '', '');
+            } else {
+              console.log('🔐 GoogleSignIn: Could not extract auth data from HTML');
+              onError?.('Failed to extract authentication data from response');
+            }
+          } catch (fallbackError) {
+            console.error('🔐 GoogleSignIn: Fallback extraction failed:', fallbackError);
+            onError?.('Failed to complete OAuth flow - please try again');
+          }
         }
         
         // The deep link listener will automatically call completeOAuthFlow

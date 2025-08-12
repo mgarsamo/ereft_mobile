@@ -43,29 +43,66 @@ export const AuthProvider = ({ children }) => {
     }
   );
 
-  // Check for stored token on app start and initialize user storage
-  useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        // Initialize demo users if needed
-        await UserStorage.initializeDemoUsers();
-        
-        const storedToken = await AsyncStorage.getItem('authToken');
-        const storedUser = await AsyncStorage.getItem('user');
-        
-        if (storedToken && storedUser) {
-          setToken(storedToken);
-          setUser(JSON.parse(storedUser));
-          setIsAuthenticated(true);
+  // Check if user is already logged in (auto-login)
+  const checkAuthStatus = async () => {
+    try {
+      console.log('🔐 AuthContext: Checking authentication status');
+      
+      const storedToken = await AsyncStorage.getItem('authToken');
+      const storedUser = await AsyncStorage.getItem('user');
+      
+      if (storedToken && storedUser) {
+        try {
+          const userData = JSON.parse(storedUser);
+          
+          // For now, we'll just restore the stored data
+          // In production, you might want to verify the token with the backend
+          if (__DEV__) {
+            console.log('🔐 Development mode: Restoring stored session');
+            setToken(storedToken);
+            setUser(userData);
+            setIsAuthenticated(true);
+            return true;
+          } else {
+            // Production: verify token with backend
+            try {
+              const response = await api.get('/api/auth/verify-token/');
+              if (response.data.valid) {
+                setToken(storedToken);
+                setUser(userData);
+                setIsAuthenticated(true);
+                return true;
+              } else {
+                // Token invalid, clear stored data
+                await AsyncStorage.removeItem('authToken');
+                await AsyncStorage.removeItem('user');
+                return false;
+              }
+            } catch (error) {
+              console.log('🔐 Token verification failed, clearing stored data');
+              await AsyncStorage.removeItem('authToken');
+              await AsyncStorage.removeItem('user');
+              return false;
+            }
+          }
+        } catch (parseError) {
+          console.error('🔐 Error parsing stored user data:', parseError);
+          await AsyncStorage.removeItem('authToken');
+          await AsyncStorage.removeItem('user');
+          return false;
         }
-      } catch (error) {
-        console.error('Error loading auth data:', error);
-      } finally {
-        setIsLoading(false);
       }
-    };
+      
+      return false;
+    } catch (error) {
+      console.error('🔐 Check auth status error:', error);
+      return false;
+    }
+  };
 
-    initializeAuth();
+  // Initialize authentication state on app start
+  useEffect(() => {
+    checkAuthStatus();
   }, []);
 
   // Login function - uses local user storage and backend
@@ -636,6 +673,122 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Password reset functionality
+  const resetPassword = async (email) => {
+    try {
+      setIsLoading(true);
+      console.log('🔐 AuthContext: Resetting password for', email);
+      
+      // For now, we'll use a simple approach since we don't have email service configured
+      // In production, this would send an email with reset link
+      if (__DEV__) {
+        // Development mode: just return success
+        console.log('🔐 Development mode: Password reset would be sent to', email);
+        return {
+          success: true,
+          message: 'Password reset link would be sent to your email (development mode)',
+        };
+      } else {
+        // Production: call backend API
+        const response = await api.post('/api/auth/reset-password/', { email });
+        return response.data;
+      }
+    } catch (error) {
+      console.error('🔐 Password reset error:', error);
+      return {
+        success: false,
+        message: 'Failed to reset password. Please try again.',
+      };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Change password (for authenticated users)
+  const changePassword = async (currentPassword, newPassword) => {
+    try {
+      setIsLoading(true);
+      console.log('🔐 AuthContext: Changing password');
+      
+      // For now, we'll use a simple approach
+      // In production, this would call the backend API
+      if (__DEV__) {
+        // Development mode: just return success
+        console.log('🔐 Development mode: Password changed successfully');
+        return {
+          success: true,
+          message: 'Password changed successfully (development mode)',
+        };
+      } else {
+        // Production: call backend API
+        const response = await api.post('/api/auth/change-password/', {
+          current_password: currentPassword,
+          new_password: newPassword,
+        });
+        return response.data;
+      }
+    } catch (error) {
+      console.error('🔐 Change password error:', error);
+      return {
+        success: false,
+        message: 'Failed to change password. Please try again.',
+      };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Delete user account
+  const deleteAccount = async (password) => {
+    try {
+      setIsLoading(true);
+      console.log('🔐 AuthContext: Deleting user account');
+      
+      // For now, we'll use a simple approach
+      // In production, this would call the backend API to delete the account
+      if (__DEV__) {
+        // Development mode: just clear local data
+        console.log('🔐 Development mode: Account deletion simulated');
+        
+        // Clear all local data
+        await AsyncStorage.clear();
+        
+        // Reset state
+        setToken(null);
+        setUser(null);
+        setIsAuthenticated(false);
+        
+        return {
+          success: true,
+          message: 'Account deleted successfully (development mode)',
+        };
+      } else {
+        // Production: call backend API
+        const response = await api.delete('/api/auth/delete-account/', {
+          data: { password },
+        });
+        
+        if (response.data.success) {
+          // Clear local data
+          await AsyncStorage.clear();
+          setToken(null);
+          setUser(null);
+          setIsAuthenticated(false);
+        }
+        
+        return response.data;
+      }
+    } catch (error) {
+      console.error('🔐 Delete account error:', error);
+      return {
+        success: false,
+        message: 'Failed to delete account. Please try again.',
+      };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const value = {
     user,
     token,
@@ -651,7 +804,11 @@ export const AuthProvider = ({ children }) => {
     verifyPhoneCode,
     resendVerificationCode,
     loginWithGoogle,
-    completeGoogleOAuth, // Add the new function
+    completeGoogleOAuth,
+    resetPassword,
+    changePassword,
+    deleteAccount,
+    checkAuthStatus,
     api,
   };
 
