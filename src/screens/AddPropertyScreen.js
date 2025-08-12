@@ -11,7 +11,7 @@ import {
   Image,
   Dimensions,
 } from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import * as ImagePicker from 'expo-image-picker';
 import { useProperty } from '../context/PropertyContext';
@@ -22,8 +22,13 @@ const { width } = Dimensions.get('window');
 
 const AddPropertyScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute();
   const { user } = useAuth();
-  const { addProperty } = useProperty();
+  const { addProperty, updateProperty } = useProperty();
+  
+  // Check if we're in edit mode
+  const isEditMode = route.params?.editMode || false;
+  const existingProperty = route.params?.property || null;
   
   const [formData, setFormData] = useState({
     title: '',
@@ -45,6 +50,30 @@ const AddPropertyScreen = () => {
 
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Initialize form data for edit mode
+  useEffect(() => {
+    if (isEditMode && existingProperty) {
+      console.log('🏠 AddPropertyScreen: Edit mode - initializing with existing property:', existingProperty);
+      setFormData({
+        title: existingProperty.title || '',
+        description: existingProperty.description || '',
+        price: existingProperty.price?.toString() || '',
+        propertyType: existingProperty.property_type || 'house',
+        listingType: existingProperty.listing_type || 'sale',
+        bedrooms: existingProperty.bedrooms?.toString() || '',
+        bathrooms: existingProperty.bathrooms?.toString() || '',
+        area_sqm: existingProperty.area_sqm?.toString() || '',
+        address: existingProperty.address || '',
+        city: existingProperty.city || '',
+        sub_city: existingProperty.sub_city || '',
+        kebele: existingProperty.kebele || '',
+        street_name: existingProperty.street_name || '',
+        house_number: existingProperty.house_number || '',
+        images: existingProperty.images || [],
+      });
+    }
+  }, [isEditMode, existingProperty]);
 
   // Prevent accidental navigation when form has data
   useFocusEffect(
@@ -377,6 +406,7 @@ const AddPropertyScreen = () => {
 
     console.log('AddPropertyScreen: Starting form submission...');
     console.log('AddPropertyScreen: Form data:', formData);
+    console.log('AddPropertyScreen: Edit mode:', isEditMode);
     
     // Validate form
     if (!formData.title || !formData.price || !formData.address) {
@@ -394,71 +424,100 @@ const AddPropertyScreen = () => {
 
     try {
       setSubmitting(true);
-      console.log('AddPropertyScreen: Calling addProperty...');
       
-      // Add timeout protection
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Request timeout')), 30000); // 30 second timeout
-      });
+      let result;
       
-      // Submit to API with timeout
-      const newProperty = await Promise.race([
-        addProperty(formData),
-        timeoutPromise
-      ]);
-      
-      console.log('AddPropertyScreen: Property added successfully:', newProperty);
+      if (isEditMode && existingProperty) {
+        console.log('AddPropertyScreen: Editing existing property:', existingProperty.id);
+        
+        // Update existing property
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Request timeout')), 30000);
+        });
+        
+        result = await Promise.race([
+          updateProperty(existingProperty.id, formData),
+          timeoutPromise
+        ]);
+        
+        console.log('AddPropertyScreen: Property updated successfully:', result);
+      } else {
+        console.log('AddPropertyScreen: Adding new property...');
+        
+        // Add new property
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Request timeout')), 30000);
+        });
+        
+        result = await Promise.race([
+          addProperty(formData),
+          timeoutPromise
+        ]);
+        
+        console.log('AddPropertyScreen: Property added successfully:', result);
+      }
       
       // Show success message and navigate to property detail
+      const action = isEditMode ? 'updated' : 'listed';
+      const title = isEditMode ? 'Success' : 'Success';
+      const message = isEditMode 
+        ? 'Property updated successfully!' 
+        : 'Property listed successfully! It is now live.';
+      
       Alert.alert(
-        'Success',
-        'Property listed successfully! It is now live.',
+        title,
+        message,
         [
           {
             text: 'View Property',
             onPress: () => {
               console.log('AddPropertyScreen: Navigating to PropertyDetail...');
-              navigation.navigate('PropertyDetail', { property: newProperty });
+              navigation.navigate('PropertyDetail', { property: result });
             }
           },
           {
-            text: 'Add Another',
+            text: isEditMode ? 'Done' : 'Add Another',
             onPress: () => {
-              console.log('AddPropertyScreen: Resetting form...');
-              // Reset form
-              setFormData({
-                title: '',
-                description: '',
-                propertyType: 'house',
-                listingType: 'sale',
-                price: '',
-                bedrooms: '1',
-                bathrooms: '1',
-                area_sqm: '',
-                address: '',
-                city: '',
-                sub_city: '',
-                kebele: '',
-                street_name: '',
-                house_number: '',
-                images: [], // Reset images array
-              });
-              
-              // Clear saved form data
-              AsyncStorage.removeItem('addPropertyFormData').catch(error => {
-                console.error('AddPropertyScreen: Error clearing saved form data:', error);
-              });
+              if (isEditMode) {
+                navigation.goBack();
+              } else {
+                console.log('AddPropertyScreen: Resetting form...');
+                // Reset form for new property
+                setFormData({
+                  title: '',
+                  description: '',
+                  propertyType: 'house',
+                  listingType: 'sale',
+                  price: '',
+                  bedrooms: '1',
+                  bathrooms: '1',
+                  area_sqm: '',
+                  address: '',
+                  city: '',
+                  sub_city: '',
+                  kebele: '',
+                  street_name: '',
+                  house_number: '',
+                  images: [],
+                });
+                
+                // Clear saved form data
+                AsyncStorage.removeItem('addPropertyFormData').catch(error => {
+                  console.error('AddPropertyScreen: Error clearing saved form data:', error);
+                });
+              }
             }
           }
         ]
       );
     } catch (error) {
-      console.error('AddPropertyScreen: Error adding property:', error);
+      console.error('AddPropertyScreen: Error processing property:', error);
       
       if (error.message === 'Request timeout') {
         Alert.alert('Error', 'Request timed out. Please check your connection and try again.');
       } else {
-        Alert.alert('Error', 'Failed to add property. Please try again.');
+        const action = isEditMode ? 'update' : 'add';
+        Alert.alert('Error', `Failed to ${action} property. Please try again.`);
       }
     } finally {
       setSubmitting(false);
@@ -492,7 +551,9 @@ const AddPropertyScreen = () => {
       >
         <Icon name="arrow-back" size={24} color="#FFFFFF" />
       </TouchableOpacity>
-      <Text style={styles.headerTitle}>Add Property</Text>
+      <Text style={styles.headerTitle}>
+        {isEditMode ? 'Edit Property' : 'Add Property'}
+      </Text>
       <View style={styles.placeholder} />
     </View>
   );
@@ -610,7 +671,9 @@ const AddPropertyScreen = () => {
               ) : (
                 <>
                   <Icon name="check" size={24} color="#FFFFFF" />
-                  <Text style={styles.submitButtonText}>Add Property</Text>
+                  <Text style={styles.submitButtonText}>
+                    {isEditMode ? 'Update Property' : 'Add Property'}
+                  </Text>
                 </>
               )}
             </TouchableOpacity>

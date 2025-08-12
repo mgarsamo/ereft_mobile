@@ -143,6 +143,19 @@ const PropertyDetailScreen = () => {
       </TouchableOpacity>
       
       <View style={styles.headerActions}>
+        {/* Edit button for property owners */}
+        {user && property && (user.id === property.owner?.id || user.id === property.owner) && (
+          <TouchableOpacity 
+            style={styles.headerButton}
+            onPress={() => navigation.navigate('AddProperty', { 
+              editMode: true, 
+              property: property 
+            })}
+          >
+            <Icon name="edit" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
+        
         <TouchableOpacity 
           style={styles.headerButton}
           onPress={handleFavoriteToggle}

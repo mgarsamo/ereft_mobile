@@ -21,12 +21,23 @@ const { width, height } = Dimensions.get('window');
 const HomeScreen = () => {
   const navigation = useNavigation();
   const { user } = useAuth();
+  const { properties, featuredProperties, propertyStats, getProperties, getFeaturedProperties, getPropertyStats } = useProperty();
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    // Simulate refresh
-    setTimeout(() => setRefreshing(false), 1000);
+    try {
+      // Refresh all property data
+      await Promise.all([
+        getProperties(),
+        getFeaturedProperties(),
+        getPropertyStats(),
+      ]);
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleSearch = (query) => {
@@ -118,13 +129,13 @@ const HomeScreen = () => {
     <View style={styles.statsSection}>
       <Text style={styles.sectionTitle}>Market Overview</Text>
       <View style={styles.statsContainer}>
-        {/* All Market Overview icons are now functional - showing 0 until real data is available */}
+        {/* Market Overview with real data from PropertyContext */}
         <TouchableOpacity 
           style={styles.statCard}
           onPress={() => navigation.navigate('Search', { query: 'all properties' })}
         >
           <Icon name="home" size={24} color="#006AFF" />
-          <Text style={styles.statValue}>0</Text>
+          <Text style={styles.statValue}>{propertyStats?.total_properties || 0}</Text>
           <Text style={styles.statLabel}>Properties</Text>
         </TouchableOpacity>
         <TouchableOpacity 
@@ -132,7 +143,7 @@ const HomeScreen = () => {
           onPress={() => navigation.navigate('Search', { type: 'sale' })}
         >
           <Icon name="home" size={24} color="#28A745" />
-          <Text style={styles.statValue}>0</Text>
+          <Text style={styles.statValue}>{propertyStats?.for_sale || 0}</Text>
           <Text style={styles.statLabel}>For Sale</Text>
         </TouchableOpacity>
         <TouchableOpacity 
@@ -140,7 +151,7 @@ const HomeScreen = () => {
           onPress={() => navigation.navigate('Search', { type: 'rent' })}
         >
           <Icon name="apartment" size={24} color="#FF6B35" />
-          <Text style={styles.statValue}>0</Text>
+          <Text style={styles.statValue}>{propertyStats?.for_rent || 0}</Text>
           <Text style={styles.statLabel}>For Rent</Text>
         </TouchableOpacity>
       </View>
@@ -188,41 +199,27 @@ const HomeScreen = () => {
   };
 
   const renderFeaturedSection = () => {
-    const featuredProperties = [
-      {
-        id: '1',
-        title: 'Beautiful House in Bole',
-        price: 2500000,
-        location: 'Bole, Addis Ababa',
-        bedrooms: 4,
-        bathrooms: 3,
-        area_sqm: 250,
-        image: 'https://via.placeholder.com/250x180/006AFF/FFFFFF?text=House+1',
-        isFeatured: true,
-      },
-      {
-        id: '2',
-        title: 'Modern Apartment in Kazanchis',
-        price: 1800000,
-        location: 'Kazanchis, Addis Ababa',
-        bedrooms: 3,
-        bathrooms: 2,
-        area_sqm: 180,
-        image: 'https://via.placeholder.com/250x180/FF6B35/FFFFFF?text=Apartment+1',
-        isFeatured: true,
-      },
-      {
-        id: '3',
-        title: 'Luxury Villa in CMC',
-        price: 4200000,
-        location: 'CMC, Addis Ababa',
-        bedrooms: 5,
-        bathrooms: 4,
-        area_sqm: 400,
-        image: 'https://via.placeholder.com/250x180/28A745/FFFFFF?text=Villa+1',
-        isFeatured: true,
-      },
-    ];
+    // Use real featured properties from PropertyContext
+    const realFeaturedProperties = featuredProperties || [];
+    
+    // If no featured properties, show a message
+    if (realFeaturedProperties.length === 0) {
+      return (
+        <View style={styles.featuredSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Featured Properties</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Featured')}>
+              <Text style={styles.seeAllText}>See All</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.noFeaturedContainer}>
+            <Icon name="home" size={40} color="#E9ECEF" />
+            <Text style={styles.noFeaturedText}>No featured properties yet</Text>
+            <Text style={styles.noFeaturedSubtext}>Check back later for new listings</Text>
+          </View>
+        </View>
+      );
+    }
 
     const formatPrice = (price) => {
       return new Intl.NumberFormat('en-ET', {
@@ -246,16 +243,24 @@ const HomeScreen = () => {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.featuredContainer}
         >
-          {featuredProperties.map((property) => (
+          {realFeaturedProperties.map((property) => (
             <TouchableOpacity 
               key={property.id} 
               style={styles.featuredCard}
               onPress={() => handlePropertyPress(property)}
             >
               <View style={styles.featuredImageContainer}>
-                <View style={styles.featuredImagePlaceholder}>
-                  <Icon name="home" size={40} color="#E9ECEF" />
-                </View>
+                {property.images && property.images.length > 0 ? (
+                  <Image
+                    source={{ uri: property.images[0] }}
+                    style={styles.featuredImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={styles.featuredImagePlaceholder}>
+                    <Icon name="home" size={40} color="#E9ECEF" />
+                  </View>
+                )}
                 <View style={styles.featuredBadge}>
                   <Text style={styles.featuredBadgeText}>Featured</Text>
                 </View>
@@ -269,11 +274,11 @@ const HomeScreen = () => {
                 </Text>
                 <Text style={styles.featuredLocation}>
                   <Icon name="location-on" size={14} color="#6C757D" />
-                  {' '}{property.location}
+                  {' '}{property.location || property.address || 'Location not specified'}
                 </Text>
                 <View style={styles.featuredDetails}>
                   <Text style={styles.featuredDetailText}>
-                    {property.bedrooms} bed • {property.bathrooms} bath • {property.area_sqm} m²
+                    {property.bedrooms || 0} bed • {property.bathrooms || 0} bath • {property.area_sqm || 0} m²
                   </Text>
                 </View>
               </View>
@@ -541,14 +546,20 @@ const styles = StyleSheet.create({
   featuredImageContainer: {
     position: 'relative',
   },
+  featuredImage: {
+    width: '100%',
+    height: 150,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
   featuredImagePlaceholder: {
     width: '100%',
     height: 150,
-    backgroundColor: '#F8F9FA',
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
+    backgroundColor: '#E9ECEF',
     justifyContent: 'center',
     alignItems: 'center',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
   },
   featuredBadge: {
     position: 'absolute',
@@ -591,6 +602,23 @@ const styles = StyleSheet.create({
   featuredDetailText: {
     fontSize: 12,
     color: '#6C757D',
+  },
+  noFeaturedContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  noFeaturedText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1A1A1A',
+    marginTop: 20,
+  },
+  noFeaturedSubtext: {
+    fontSize: 14,
+    color: '#6C757D',
+    marginTop: 10,
+    textAlign: 'center',
   },
   emptyState: {
     alignItems: 'center',
