@@ -13,9 +13,9 @@ class GeocodingService {
    * Convert address to coordinates (latitude, longitude)
    * @param {string} address - The address to geocode
    * @param {string} city - The city (optional, helps with accuracy)
-   * @returns {Promise<{latitude: number, longitude: number, formatted_address: string}>}
+   * @returns {Promise<Object>} Object with latitude, longitude, and formatted_address
    */
-  async geocodeAddress(address, city = 'Addis Ababa, Ethiopia') => {
+  async geocodeAddress(address, city = 'Addis Ababa, Ethiopia') {
     try {
       console.log('🗺️ GeocodingService: Geocoding address:', address);
       
