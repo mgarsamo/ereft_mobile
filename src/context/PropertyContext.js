@@ -243,33 +243,57 @@ export const PropertyProvider = ({ children }) => {
     ];
   };
 
-  // Get properties with demo fallback
+  // Get properties with proper backend integration
   const getProperties = async (page = 1, filters = {}) => {
     try {
       setIsLoading(true);
+      console.log('🏠 PropertyContext: Fetching properties from backend...');
       
-      // Always provide demo data first for immediate UI response
-      const demoProperties = getDemoProperties();
-      setProperties(demoProperties);
-      
-      // Try to fetch from API only if we have proper setup and backend token
-      if (api && isAuthenticated && token && !token.startsWith('ereft_token_')) {
+      // Try to fetch from API first
+      if (api && isAuthenticated) {
         try {
           const params = { page, ...filters };
+          console.log('🏠 PropertyContext: API call params:', params);
+          
           const response = await api.get('/api/properties/', { params });
+          console.log('🏠 PropertyContext: API response status:', response.status);
+          console.log('🏠 PropertyContext: API response data length:', response.data?.results?.length || response.data?.length || 0);
+          
           if (response.data && (response.data.results || response.data.length > 0)) {
-            setProperties(response.data.results || response.data);
-            return response.data;
+            const realProperties = response.data.results || response.data;
+            console.log('🏠 PropertyContext: Setting real properties from backend:', realProperties.length);
+            setProperties(realProperties);
+            return { results: realProperties, count: realProperties.length };
+          } else {
+            console.log('🏠 PropertyContext: No properties returned from API, using demo data');
+            const demoProperties = getDemoProperties();
+            setProperties(demoProperties);
+            return { results: demoProperties, count: demoProperties.length };
           }
         } catch (apiError) {
-          console.log('API fetch failed, using demo data:', apiError.message);
-          // Keep demo data if API fails
+          console.error('🏠 PropertyContext: API fetch failed:', apiError.message);
+          console.error('🏠 PropertyContext: API error details:', apiError.response?.data);
+          
+          // If it's an authentication error, clear the token
+          if (apiError.response?.status === 401) {
+            console.log('🏠 PropertyContext: Authentication error, clearing token');
+            // You might want to trigger a logout here
+          }
+          
+          // Fall back to demo data
+          const demoProperties = getDemoProperties();
+          setProperties(demoProperties);
+          return { results: demoProperties, count: demoProperties.length };
         }
+      } else {
+        console.log('🏠 PropertyContext: Not authenticated or no API, using demo data');
+        // Not authenticated, use demo data
+        const demoProperties = getDemoProperties();
+        setProperties(demoProperties);
+        return { results: demoProperties, count: demoProperties.length };
       }
-      
-      return { results: demoProperties, count: demoProperties.length };
     } catch (error) {
-      console.error('Error in getProperties:', error);
+      console.error('🏠 PropertyContext: Error in getProperties:', error);
       
       // Return demo properties if everything fails
       const fallbackProperties = getDemoProperties();
@@ -280,29 +304,46 @@ export const PropertyProvider = ({ children }) => {
     }
   };
 
-  // Get featured properties with demo fallback
+  // Get featured properties with proper backend integration
   const getFeaturedProperties = async () => {
     try {
-      // Always provide demo data first
-      const demoFeatured = getDemoFeaturedProperties();
-      setFeaturedProperties(demoFeatured);
+      console.log('🏠 PropertyContext: Fetching featured properties from backend...');
       
-      // Try API only if authenticated and have backend token
-      if (api && isAuthenticated && token && !token.startsWith('ereft_token_')) {
+      // Try API first if authenticated
+      if (api && isAuthenticated) {
         try {
           const response = await api.get('/api/properties/featured/');
+          console.log('🏠 PropertyContext: Featured API response status:', response.status);
+          console.log('🏠 PropertyContext: Featured API response data length:', response.data?.length || 0);
+          
           if (response.data && response.data.length > 0) {
+            console.log('🏠 PropertyContext: Setting real featured properties from backend:', response.data.length);
             setFeaturedProperties(response.data);
             return response.data;
+          } else {
+            console.log('🏠 PropertyContext: No featured properties returned from API, using demo data');
+            const demoFeatured = getDemoFeaturedProperties();
+            setFeaturedProperties(demoFeatured);
+            return demoFeatured;
           }
         } catch (apiError) {
-          console.log('Featured API fetch failed, using demo data:', apiError.message);
+          console.error('🏠 PropertyContext: Featured API fetch failed:', apiError.message);
+          console.error('🏠 PropertyContext: Featured API error details:', apiError.response?.data);
+          
+          // Fall back to demo data
+          const demoFeatured = getDemoFeaturedProperties();
+          setFeaturedProperties(demoFeatured);
+          return demoFeatured;
         }
+      } else {
+        console.log('🏠 PropertyContext: Not authenticated, using demo featured properties');
+        // Not authenticated, use demo data
+        const demoFeatured = getDemoFeaturedProperties();
+        setFeaturedProperties(demoFeatured);
+        return demoFeatured;
       }
-      
-      return demoFeatured;
     } catch (error) {
-      console.error('Error fetching featured properties:', error);
+      console.error('🏠 PropertyContext: Error fetching featured properties:', error);
       
       // Return demo featured properties if everything fails
       const fallbackFeatured = getDemoFeaturedProperties();
@@ -578,30 +619,36 @@ export const PropertyProvider = ({ children }) => {
     }
   };
 
-  // Add new property
+  // Add new property with proper backend integration
   const addProperty = async (propertyData) => {
     try {
       setIsLoading(true);
+      console.log('🏠 PropertyContext: Adding new property to backend...');
+      console.log('🏠 PropertyContext: Property data:', propertyData);
       
-      // Only try API if authenticated and have a backend token (not local ereft_token)
-      if (api && isAuthenticated && token && !token.startsWith('ereft_token_')) {
+      // Try API first if authenticated
+      if (api && isAuthenticated) {
         try {
           const formData = new FormData();
           
           // Add basic property data
           Object.keys(propertyData).forEach(key => {
-            if (key === 'images') {
+            if (key === 'images' && Array.isArray(propertyData[key])) {
               propertyData[key].forEach((image, index) => {
-                formData.append('images', {
-                  uri: image.uri,
-                  type: image.type || 'image/jpeg',
-                  name: `image_${index}.jpg`,
-                });
+                if (image && image.uri) {
+                  formData.append('images', {
+                    uri: image.uri,
+                    type: image.type || 'image/jpeg',
+                    name: `image_${index}.jpg`,
+                  });
+                }
               });
-            } else {
+            } else if (propertyData[key] !== undefined && propertyData[key] !== '') {
               formData.append(key, propertyData[key]);
             }
           });
+          
+          console.log('🏠 PropertyContext: FormData prepared, sending to backend...');
           
           const response = await api.post('/api/properties/', formData, {
             headers: {
@@ -609,23 +656,47 @@ export const PropertyProvider = ({ children }) => {
             },
           });
           
+          console.log('🏠 PropertyContext: Backend response:', response.status);
+          console.log('🏠 PropertyContext: Created property:', response.data);
+          
           // Add to properties list
-          setProperties(prev => [response.data, ...prev]);
+          setProperties(prev => [response.data, ...(prev || [])]);
+          
+          // Update featured properties if this is a featured property
+          if (response.data.is_featured) {
+            setFeaturedProperties(prev => [response.data, ...(prev || [])]);
+          }
           
           return response.data;
         } catch (apiError) {
-          console.error('API property creation failed:', apiError);
-          // Fall back to local handling
+          console.error('🏠 PropertyContext: API property creation failed:', apiError.message);
+          console.error('🏠 PropertyContext: API error details:', apiError.response?.data);
+          
+          // If it's a validation error, show the specific error
+          if (apiError.response?.status === 400) {
+            const errorMessage = apiError.response.data?.error || apiError.response.data?.message || 'Validation error';
+            throw new Error(errorMessage);
+          }
+          
+          // If it's an authentication error
+          if (apiError.response?.status === 401) {
+            throw new Error('Authentication failed. Please log in again.');
+          }
+          
+          // For other errors, fall back to local handling
+          console.log('🏠 PropertyContext: Falling back to local property creation');
         }
       }
       
       // Local fallback for demo mode or when API fails
+      console.log('🏠 PropertyContext: Creating property locally...');
       const newProperty = {
         ...propertyData,
         id: `local_${Date.now()}`,
         created_at: new Date().toISOString(),
-        owner: user,
+        owner: user || { name: 'Local User', id: 'local_user' },
         is_favorited: false,
+        is_featured: false,
       };
       
       setProperties(prev => [newProperty, ...(prev || [])]);
@@ -638,13 +709,14 @@ export const PropertyProvider = ({ children }) => {
             active_listings: 1
           });
         } catch (error) {
-          console.error('Error updating user stats:', error);
+          console.error('🏠 PropertyContext: Error updating user stats:', error);
         }
       }
       
+      console.log('🏠 PropertyContext: Property created locally:', newProperty);
       return newProperty;
     } catch (error) {
-      console.error('Error adding property:', error);
+      console.error('🏠 PropertyContext: Error adding property:', error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -684,29 +756,80 @@ export const PropertyProvider = ({ children }) => {
     }
   };
 
+  // Get user's own properties
+  const getUserProperties = async () => {
+    try {
+      console.log('🏠 PropertyContext: Fetching user properties from backend...');
+      
+      if (api && isAuthenticated && user?.id) {
+        try {
+          const response = await api.get(`/api/properties/user/${user.id}/`);
+          console.log('🏠 PropertyContext: User properties API response:', response.status);
+          console.log('🏠 PropertyContext: User properties count:', response.data?.length || 0);
+          
+          if (response.data && response.data.length > 0) {
+            return response.data;
+          } else {
+            console.log('🏠 PropertyContext: No user properties found');
+            return [];
+          }
+        } catch (apiError) {
+          console.error('🏠 PropertyContext: User properties API failed:', apiError.message);
+          
+          // Fall back to filtering local properties
+          const userProperties = properties.filter(p => p.owner?.id === user.id);
+          console.log('🏠 PropertyContext: Using local user properties:', userProperties.length);
+          return userProperties;
+        }
+      } else {
+        console.log('🏠 PropertyContext: Not authenticated or no user ID');
+        return [];
+      }
+    } catch (error) {
+      console.error('🏠 PropertyContext: Error getting user properties:', error);
+      return [];
+    }
+  };
+
   // Delete property
   const deleteProperty = async (propertyId) => {
     try {
-      // Try API first if authenticated and have backend token
-      if (api && isAuthenticated && token && !token.startsWith('ereft_token_')) {
+      console.log('🏠 PropertyContext: Deleting property:', propertyId);
+      
+      if (api && isAuthenticated) {
         try {
-          await api.delete(`/api/properties/${propertyId}/`);
+          const response = await api.delete(`/api/properties/${propertyId}/`);
+          console.log('🏠 PropertyContext: Property deleted from backend:', response.status);
+          
           // Remove from local state
           setProperties(prev => prev.filter(p => p.id !== propertyId));
-          return { success: true };
+          setFeaturedProperties(prev => prev.filter(p => p.id !== propertyId));
+          
+          return { success: true, message: 'Property deleted successfully' };
         } catch (apiError) {
-          console.error('API delete failed:', apiError.message);
-          // Fall back to local deletion
+          console.error('🏠 PropertyContext: API delete failed:', apiError.message);
+          
+          if (apiError.response?.status === 403) {
+            throw new Error('You do not have permission to delete this property');
+          }
+          
+          if (apiError.response?.status === 404) {
+            throw new Error('Property not found');
+          }
+          
+          throw new Error('Failed to delete property from backend');
         }
+      } else {
+        // Local deletion for demo mode
+        console.log('🏠 PropertyContext: Deleting property locally');
+        setProperties(prev => prev.filter(p => p.id !== propertyId));
+        setFeaturedProperties(prev => prev.filter(p => p.id !== propertyId));
+        
+        return { success: true, message: 'Property deleted locally' };
       }
-      
-      // Local deletion for demo mode
-      setProperties(prev => prev.filter(p => p.id !== propertyId));
-      return { success: true };
     } catch (error) {
-      console.error('Error deleting property:', error);
-      // Return success instead of throwing
-      return { success: true };
+      console.error('🏠 PropertyContext: Error deleting property:', error);
+      throw error;
     }
   };
 
@@ -861,34 +984,24 @@ export const PropertyProvider = ({ children }) => {
   // }, []);
 
   const value = {
-    properties: properties || getDemoProperties(),
-    featuredProperties: featuredProperties || getDemoFeaturedProperties(),
-    favorites: favorites || [],
-    searchResults: searchResults || [],
+    properties: getSafeProperties(),
+    featuredProperties: getSafeFeaturedProperties(),
+    favorites,
+    searchResults,
     isLoading,
-    searchFilters: searchFilters || {},
-    propertyStats: propertyStats || {
-      total_properties: 150,
-      for_sale: 89,
-      for_rent: 61,
-      average_price: 2500000
-    },
+    searchFilters,
+    propertyStats,
     getProperties,
     getFeaturedProperties,
     getPropertyDetails,
     searchProperties,
-    getFavorites,
-    toggleFavorite,
     addProperty,
     updateProperty,
     deleteProperty,
-    contactAgent,
-    getPropertyStats,
-    trackPropertyView,
-    getSearchHistory,
+    getUserProperties,
+    toggleFavorite,
     clearSearchResults,
-    getSafeProperties,
-    getSafeFeaturedProperties,
+    setSearchFilters,
   };
 
   return (
