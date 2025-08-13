@@ -6,26 +6,26 @@ export const API_BASE_URL = ENV.API_BASE_URL;
 // API Endpoints
 export const API_ENDPOINTS = {
   // Property endpoints
-  PROPERTIES: '/api/properties/',
+  PROPERTIES: '/api/properties/', // Reverted to /api/properties/
   PROPERTY_DETAILS: '/api/properties/',
-  FEATURED_PROPERTIES: '/api/featured/',
-  PROPERTY_STATS: '/api/stats/',
-  PROPERTY_SEARCH: '/api/search/',
-  
+  FEATURED_PROPERTIES: '/api/properties/featured/', // Changed to use @action
+  PROPERTY_STATS: '/api/properties/stats/', // Changed to use @action
+  PROPERTY_SEARCH: '/api/properties/search/', // Changed to use @action
+
   // User endpoints
   USER_PROFILE: '/api/profile/',
   USER_STATS: '/api/users/me/stats/',
-  
+
   // Authentication endpoints
   LOGIN: '/api/auth/login/',
   REGISTER: '/api/auth/register/',
   LOGOUT: '/api/auth/logout/',
   GOOGLE_OAUTH: '/api/auth/google/',
   VERIFY_TOKEN: '/api/auth/verify-token/',
-  
+
   // Favorites
   FAVORITES: '/api/favorites/',
-  
+
   // Search history
   SEARCH_HISTORY: '/api/search-history/',
 };
