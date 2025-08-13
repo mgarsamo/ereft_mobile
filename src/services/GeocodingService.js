@@ -1,12 +1,18 @@
+import { ENV } from '../config/env';
+
 /**
  * Geocoding Service for converting addresses to coordinates
  * This service handles address geocoding with Google Maps API and fallback options
  */
 class GeocodingService {
   constructor() {
-    // Google Maps API Key for geocoding
-    this.apiKey = 'AIzaSyA4-mia5UmIz5P3Nfq4pc9sbx19oco1uIg';
+    // Google Maps API Key for geocoding - from environment configuration
+    this.apiKey = ENV.GOOGLE_MAPS_API_KEY;
     this.baseUrl = 'https://maps.googleapis.com/maps/api/geocode/json';
+    
+    if (!this.apiKey) {
+      console.warn('🗺️ GeocodingService: No Google Maps API key configured, using fallback coordinates only');
+    }
   }
 
   /**
@@ -44,6 +50,10 @@ class GeocodingService {
         
         console.log('🗺️ GeocodingService: Geocoding successful:', coordinates);
         return coordinates;
+      } else if (data.status === 'ZERO_RESULTS') {
+        console.log('🗺️ GeocodingService: No results found, using fallback coordinates');
+        // Use fallback coordinates for ZERO_RESULTS
+        return this.getFallbackCoordinates(address, city);
       } else {
         console.error('🗺️ GeocodingService: Geocoding failed:', data.status, data.error_message);
         throw new Error(`Geocoding failed: ${data.status}`);

@@ -77,32 +77,42 @@ const LoginScreen = () => {
     if (!validateForm()) return;
 
     try {
+      console.log('🔐 LoginScreen: Starting login process...');
+      console.log('🔐 LoginScreen: Login method:', loginMethod);
+      
       if (loginMethod === 'phone') {
         // Phone authentication - send verification code
         const fullPhoneNumber = formatPhoneNumber(phoneNumber, countryCode);
+        console.log('🔐 LoginScreen: Sending phone verification to:', fullPhoneNumber);
         
         const result = await sendPhoneVerification(fullPhoneNumber);
         
         if (result.success) {
+          console.log('🔐 LoginScreen: Phone verification sent successfully');
           // Navigate to verification screen
           navigation.navigate('PhoneVerification', {
             phoneNumber: fullPhoneNumber,
             countryCode: countryCode,
           });
         } else {
+          console.error('🔐 LoginScreen: Phone verification failed:', result.message);
           Alert.alert('Error', result.message || 'Failed to send verification code. Please try again.');
         }
       } else {
         // Username/email authentication
+        console.log('🔐 LoginScreen: Attempting username/password login...');
         const result = await login(username.trim(), password);
         
         if (result.success) {
+          console.log('🔐 LoginScreen: Login successful');
           Alert.alert('Success', SUCCESS_MESSAGES.LOGIN_SUCCESS);
         } else {
+          console.error('🔐 LoginScreen: Login failed:', result.error);
           Alert.alert('Error', result.error || ERROR_MESSAGES.LOGIN_FAILED);
         }
       }
     } catch (error) {
+      console.error('🔐 LoginScreen: Unexpected error during login:', error);
       Alert.alert('Error', ERROR_MESSAGES.NETWORK_ERROR);
     }
   };

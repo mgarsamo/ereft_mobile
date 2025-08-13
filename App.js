@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Provider as PaperProvider } from 'react-native-paper';
+import * as ImagePicker from 'expo-image-picker';
 
 // Import screens
 import HomeScreen from './src/screens/HomeScreen';
@@ -171,6 +172,25 @@ function RootNavigator() {
 
 // Main App Component
 export default function App() {
+  useEffect(() => {
+    const requestCameraPermission = async () => {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        alert('Camera permission is required to take photos.');
+      }
+    };
+
+    const requestPhotoLibraryPermission = async () => {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        alert('Photo library permission is required to select photos.');
+      }
+    };
+
+    requestCameraPermission();
+    requestPhotoLibraryPermission();
+  }, []);
+
   return (
     <PaperProvider theme={theme}>
       <AuthProvider>

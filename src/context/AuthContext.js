@@ -29,11 +29,11 @@ export const AuthProvider = ({ children }) => {
     },
   });
 
-  // Add token to requests if available
+  // Add token to requests if available - FIXED: Use current token from state
   api.interceptors.request.use(
     (config) => {
+      // Use the current token from state (this will be updated when token changes)
       if (token) {
-        // For all tokens, use Bearer format as it's more standard
         config.headers.Authorization = `Bearer ${token}`;
       }
       return config;
@@ -43,10 +43,10 @@ export const AuthProvider = ({ children }) => {
     }
   );
 
-  // Check if user is already logged in (auto-login)
+  // Check authentication status - Production Ready
   const checkAuthStatus = async () => {
     try {
-      console.log('🔐 AuthContext: Checking authentication status');
+      console.log('🔐 AuthContext: Checking authentication status...');
       
       const storedToken = await AsyncStorage.getItem('authToken');
       const storedUser = await AsyncStorage.getItem('user');
@@ -55,38 +55,31 @@ export const AuthProvider = ({ children }) => {
         try {
           const userData = JSON.parse(storedUser);
           
-          // For now, we'll just restore the stored data
-          // In production, you might want to verify the token with the backend
-          if (__DEV__) {
-            console.log('🔐 Development mode: Restoring stored session');
-            setToken(storedToken);
-            setUser(userData);
-            setIsAuthenticated(true);
-            return true;
-          } else {
-            // Production: verify token with backend
-            try {
-              const response = await api.get('/api/auth/verify-token/');
-              if (response.data.valid) {
-                setToken(storedToken);
-                setUser(userData);
-                setIsAuthenticated(true);
-                return true;
-              } else {
-                // Token invalid, clear stored data
-                await AsyncStorage.removeItem('authToken');
-                await AsyncStorage.removeItem('user');
-                return false;
-              }
-            } catch (error) {
-              console.log('🔐 Token verification failed, clearing stored data');
+          // Production: Always verify token with backend for security
+          try {
+            console.log('🔐 AuthContext: Verifying token with backend...');
+            const response = await api.get('/api/auth/verify-token/');
+            
+            if (response.data.valid) {
+              console.log('🔐 AuthContext: Token verified successfully');
+              setToken(storedToken);
+              setUser(userData);
+              setIsAuthenticated(true);
+              return true;
+            } else {
+              console.log('🔐 AuthContext: Token invalid, clearing stored data');
               await AsyncStorage.removeItem('authToken');
               await AsyncStorage.removeItem('user');
               return false;
             }
+          } catch (error) {
+            console.log('🔐 AuthContext: Token verification failed, clearing stored data');
+            await AsyncStorage.removeItem('authToken');
+            await AsyncStorage.removeItem('user');
+            return false;
           }
         } catch (parseError) {
-          console.error('🔐 Error parsing stored user data:', parseError);
+          console.error('🔐 AuthContext: Error parsing stored user data:', parseError);
           await AsyncStorage.removeItem('authToken');
           await AsyncStorage.removeItem('user');
           return false;
@@ -95,7 +88,7 @@ export const AuthProvider = ({ children }) => {
       
       return false;
     } catch (error) {
-      console.error('🔐 Check auth status error:', error);
+      console.error('🔐 AuthContext: Check auth status error:', error);
       return false;
     }
   };
@@ -126,12 +119,15 @@ export const AuthProvider = ({ children }) => {
   // Login function - uses local user storage and backend
   const login = async (username, password) => {
     try {
+      console.log('🔐 AuthContext: Starting login process for:', username);
       setIsLoading(true);
       
       // First try to authenticate with locally stored users (including registered users)
+      console.log('🔐 AuthContext: Attempting local authentication...');
       const localUser = await UserStorage.authenticateUser(username, password);
       
       if (localUser) {
+        console.log('🔐 AuthContext: Local authentication successful for user:', localUser.username);
         const authToken = UserStorage.generateAuthToken(localUser.id);
         
         // Store token and user data
@@ -142,8 +138,11 @@ export const AuthProvider = ({ children }) => {
         setUser(localUser);
         setIsAuthenticated(true);
         
+        console.log('🔐 AuthContext: User logged in successfully:', localUser.username);
         return { success: true };
       }
+      
+      console.log('🔐 AuthContext: Local authentication failed, trying backend...');
       
       // If no local user found, try real backend authentication
       try {
@@ -162,8 +161,10 @@ export const AuthProvider = ({ children }) => {
         setUser(userData);
         setIsAuthenticated(true);
         
+        console.log('🔐 AuthContext: Backend authentication successful for user:', userData.username);
         return { success: true };
       } catch (apiError) {
+        console.log('🔐 AuthContext: Backend authentication failed:', apiError.message);
         // If both local and backend fail, show helpful message
         let errorMessage = 'Invalid username or password.';
         
@@ -179,13 +180,14 @@ export const AuthProvider = ({ children }) => {
         };
       }
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('🔐 AuthContext: Login error:', error);
       
       return {
         success: false,
         error: 'Login failed. Please check your credentials and try again.',
       };
     } finally {
+      console.log('🔐 AuthContext: Setting loading to false');
       setIsLoading(false);
     }
   };
@@ -572,47 +574,52 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Google Sign-In with Google Identity Services - Token-based Authentication
-  const loginWithGoogle = async (authToken) => {
+  // Google Sign-In with Google Identity Services - Production Ready
+  const loginWithGoogle = async (authorizationCode) => {
     try {
       setIsLoading(true);
-      console.log('🔐 AuthContext: Processing Google OAuth with authentication token');
+      console.log('🔐 AuthContext: Processing Google OAuth with authorization code');
       console.log('🔐 AuthContext: API Base URL:', API_BASE_URL);
-      console.log('🔐 AuthContext: Token received:', authToken ? 'YES' : 'NO');
+      console.log('🔐 AuthContext: Authorization code received:', authorizationCode ? 'YES' : 'NO');
       
-      // The backend has already processed the OAuth flow and created/logged in the user
-      // We just need to store the token and user data locally
-      console.log('🔐 AuthContext: Storing authentication token and completing sign-in');
+      // Step 1: Send authorization code to backend for processing
+      console.log('🔐 AuthContext: Sending authorization code to backend...');
       
-      // For now, we'll create a basic user object from the token
-      // In a production app, you might want to verify the token with the backend
-      const userData = {
-        id: 'google_user', // This will be replaced with actual user data
-        username: 'google_user',
-        email: 'google@user.com', // This will be replaced with actual user data
-        first_name: 'Google',
-        last_name: 'User',
-        provider: 'google',
-        google_id: 'google_user'
-      };
+      const response = await api.post('/api/auth/google/', {
+        code: authorizationCode,
+        redirect_uri: 'https://ereft.onrender.com/oauth'
+      });
       
-      // Store token and user data
-      await AsyncStorage.setItem('authToken', authToken);
-      await AsyncStorage.setItem('user', JSON.stringify(userData));
+      console.log('🔐 AuthContext: Backend response received:', response.status);
       
-      // Update state
-      setToken(authToken);
-      setUser(userData);
-      setIsAuthenticated(true);
-      
-      console.log('🔐 Google OAuth successful:', userData);
-      
-      return {
-        success: true,
-        message: 'Google sign-in successful!',
-        user: userData,
-        token: authToken
-      };
+      if (response.data && response.data.token && response.data.user) {
+        const { token: authToken, user: userData } = response.data;
+        
+        console.log('🔐 AuthContext: Backend authentication successful');
+        console.log('🔐 AuthContext: User data from backend:', userData);
+        
+        // Step 2: Store real token and user data from backend
+        await AsyncStorage.setItem('authToken', authToken);
+        await AsyncStorage.setItem('user', JSON.stringify(userData));
+        
+        // Step 3: Update application state
+        setToken(authToken);
+        setUser(userData);
+        setIsAuthenticated(true);
+        
+        console.log('🔐 Google OAuth successful - user signed in:', userData.username);
+        
+        return {
+          success: true,
+          message: 'Google sign-in successful!',
+          user: userData,
+          token: authToken
+        };
+        
+      } else {
+        console.error('🔐 AuthContext: Backend response missing required data');
+        throw new Error('Backend authentication response incomplete');
+      }
       
     } catch (error) {
       console.error('🔐 Google OAuth error:', error);

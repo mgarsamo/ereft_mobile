@@ -16,11 +16,10 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import MapView, { Marker, Callout, Circle } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useProperty } from '../context/PropertyContext';
+import { ENV } from '../config/env';
 
-// Google Maps API Key - iOS and Android keys
-const GOOGLE_MAPS_API_KEY = Platform.OS === 'ios' 
-  ? 'AIzaSyA4-mia5UmIz5P3Nfq4pc9sbx19oco1uIg'  // iOS key
-  : 'AIzaSyDP555TCXanSp5coUl7jMfAiF76NfUCIvc'; // Android key
+// Google Maps API Key - Use environment configuration
+const GOOGLE_MAPS_API_KEY = ENV.GOOGLE_MAPS_API_KEY;
 
 const { width, height } = Dimensions.get('window');
 

@@ -5,34 +5,29 @@ export const API_BASE_URL = ENV.API_BASE_URL;
 
 // API Endpoints
 export const API_ENDPOINTS = {
-  // Authentication
+  // Property endpoints
+  PROPERTIES: '/api/properties/',
+  PROPERTY_DETAILS: '/api/properties/',
+  FEATURED_PROPERTIES: '/api/featured/',
+  PROPERTY_STATS: '/api/stats/',
+  PROPERTY_SEARCH: '/api/search/',
+  
+  // User endpoints
+  USER_PROFILE: '/api/profile/',
+  USER_STATS: '/api/users/me/stats/',
+  
+  // Authentication endpoints
   LOGIN: '/api/auth/login/',
   REGISTER: '/api/auth/register/',
   LOGOUT: '/api/auth/logout/',
-  TOKEN: '/api/auth/token/',
-  
-  // User Profile
-  PROFILE: '/api/profile/',
-  
-  // Properties
-  PROPERTIES: '/api/properties/',
-  PROPERTY_DETAIL: (id) => `/api/properties/${id}/`,
-  FEATURED_PROPERTIES: '/api/properties/featured/',
-  PROPERTY_SEARCH: '/api/properties/search/',
-  PROPERTY_STATS: '/api/properties/stats/',
-  PROPERTY_FAVORITE: (id) => `/api/properties/${id}/favorite/`,
-  PROPERTY_CONTACT: (id) => `/api/properties/${id}/contact/`,
-  PROPERTY_REVIEWS: (id) => `/api/properties/${id}/reviews/`,
-  TRACK_PROPERTY_VIEW: (id) => `/api/properties/${id}/track-view/`,
+  GOOGLE_OAUTH: '/api/auth/google/',
+  VERIFY_TOKEN: '/api/auth/verify-token/',
   
   // Favorites
   FAVORITES: '/api/favorites/',
   
-  // Search
+  // Search history
   SEARCH_HISTORY: '/api/search-history/',
-  
-  // Neighborhoods
-  NEIGHBORHOODS: '/api/neighborhoods/',
 };
 
 // HTTP Status Codes
