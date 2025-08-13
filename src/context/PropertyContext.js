@@ -503,7 +503,7 @@ export const PropertyProvider = ({ children }) => {
           };
           console.log('🔍 PropertyContext: API search params:', params);
           
-          const response = await api.get('/api/properties/search/', { params });
+          const response = await api.get('/api/search/', { params });
           console.log('🔍 PropertyContext: Search API response status:', response.status);
           console.log('🔍 PropertyContext: Search results count:', response.data?.results?.length || response.data?.length || 0);
           
