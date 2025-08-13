@@ -11,4 +11,9 @@ export const ENV = {
   
   // Google Maps API Key for geocoding and maps - Updated from Render environment
   GOOGLE_MAPS_API_KEY: 'AIzaSyAWis-jNmUwxCikA2FG7QqLi-nz7jEvadY',
+  
+  // Cloudinary Configuration for image uploads
+  CLOUDINARY_CLOUD_NAME: 'ereft',
+  CLOUDINARY_UPLOAD_PRESET: 'ereft_properties',
+  CLOUDINARY_API_URL: 'https://api.cloudinary.com/v1_1/ereft/image/upload',
 };

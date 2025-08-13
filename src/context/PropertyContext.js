@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import UserStorage from '../services/UserStorage';
 import GeocodingService from '../services/GeocodingService';
+import { ENV } from '../config/env';
 
 const PropertyContext = createContext();
 
@@ -35,7 +36,7 @@ export const PropertyProvider = ({ children }) => {
       
       if (api && isAuthenticated) {
         try {
-          const response = await api.get('/api/stats/');
+          const response = await api.get('/api/properties/');
           console.log('📊 PropertyContext: Stats API response status:', response.status);
           console.log('📊 PropertyContext: Stats data:', response.data);
           
@@ -89,6 +90,63 @@ export const PropertyProvider = ({ children }) => {
       total_views: 12500,
       featured_properties: 12,
     };
+  };
+
+  // Upload images to Cloudinary
+  const uploadImagesToCloudinary = async (images) => {
+    try {
+      console.log('🏠 PropertyContext: Starting Cloudinary upload for', images.length, 'images');
+      
+      const uploadPromises = images.map(async (imageUri, index) => {
+        try {
+          console.log(`🏠 PropertyContext: Uploading image ${index + 1}/${images.length}`);
+          
+          // Create form data for Cloudinary upload
+          const formData = new FormData();
+          formData.append('file', {
+            uri: imageUri,
+            type: 'image/jpeg',
+            name: `property_image_${Date.now()}_${index}.jpg`
+          });
+          formData.append('upload_preset', ENV.CLOUDINARY_UPLOAD_PRESET);
+          formData.append('cloud_name', ENV.CLOUDINARY_CLOUD_NAME);
+          
+          // Upload to Cloudinary
+          const response = await fetch(ENV.CLOUDINARY_API_URL, {
+            method: 'POST',
+            body: formData,
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Cloudinary upload failed: ${response.status}`);
+          }
+          
+          const result = await response.json();
+          console.log(`🏠 PropertyContext: Image ${index + 1} uploaded successfully:`, result.secure_url);
+          
+          return {
+            url: result.secure_url,
+            public_id: result.public_id,
+            width: result.width,
+            height: result.height
+          };
+        } catch (error) {
+          console.error(`🏠 PropertyContext: Failed to upload image ${index + 1}:`, error);
+          throw error;
+        }
+      });
+      
+      const uploadedImages = await Promise.all(uploadPromises);
+      console.log('🏠 PropertyContext: All images uploaded successfully:', uploadedImages.length);
+      
+      return uploadedImages;
+    } catch (error) {
+      console.error('🏠 PropertyContext: Error in Cloudinary upload:', error);
+      throw new Error(`Image upload failed: ${error.message}`);
+    }
   };
 
   // Initialize properties and featured properties on mount
@@ -386,7 +444,7 @@ export const PropertyProvider = ({ children }) => {
       
       if (api && isAuthenticated) {
         try {
-          const response = await api.get('/api/featured/');
+          const response = await api.get('/api/properties/');
           console.log('🏠 PropertyContext: Featured API response status:', response.status);
           console.log('🏠 PropertyContext: Featured properties count:', response.data?.length || 0);
           
@@ -503,7 +561,7 @@ export const PropertyProvider = ({ children }) => {
           };
           console.log('🔍 PropertyContext: API search params:', params);
           
-          const response = await api.get('/api/properties/search/', { params });
+          const response = await api.get('/api/properties/', { params });
           console.log('🔍 PropertyContext: Search API response status:', response.status);
           console.log('🔍 PropertyContext: Search results count:', response.data?.results?.length || response.data?.length || 0);
           
@@ -805,6 +863,20 @@ export const PropertyProvider = ({ children }) => {
 
       if (api && isAuthenticated) {
         try {
+          // Handle image uploads to Cloudinary first
+          let imageUrls = [];
+          if (propertyData.images && propertyData.images.length > 0) {
+            console.log('🏠 PropertyContext: Uploading images to Cloudinary...');
+            try {
+              // Upload images to Cloudinary and get URLs
+              imageUrls = await uploadImagesToCloudinary(propertyData.images);
+              console.log('🏠 PropertyContext: Images uploaded successfully:', imageUrls);
+            } catch (uploadError) {
+              console.error('🏠 PropertyContext: Image upload failed:', uploadError);
+              throw new Error(`Failed to upload images: ${uploadError.message}`);
+            }
+          }
+
           // Prepare property data for backend
           const propertyPayload = {
             title: propertyData.title,
@@ -832,10 +904,10 @@ export const PropertyProvider = ({ children }) => {
           const response = await api.post('/api/properties/', propertyPayload);
           console.log('🏠 PropertyContext: Property added successfully:', response.data);
 
-          // Add to local state
+          // Add to local state with uploaded images
           const newProperty = {
             ...response.data,
-            images: propertyData.images || [],
+            images: imageUrls,
             is_favorite: false
           };
 
@@ -881,6 +953,20 @@ export const PropertyProvider = ({ children }) => {
 
       if (api && isAuthenticated) {
         try {
+          // Handle image uploads to Cloudinary first if new images are provided
+          let imageUrls = [];
+          if (propertyData.images && propertyData.images.length > 0) {
+            console.log('🏠 PropertyContext: Uploading new images to Cloudinary for update...');
+            try {
+              // Upload images to Cloudinary and get URLs
+              imageUrls = await uploadImagesToCloudinary(propertyData.images);
+              console.log('🏠 PropertyContext: New images uploaded successfully:', imageUrls);
+            } catch (uploadError) {
+              console.error('🏠 PropertyContext: Image upload failed during update:', uploadError);
+              throw new Error(`Failed to upload images: ${uploadError.message}`);
+            }
+          }
+
           // Prepare property data for backend
           const propertyPayload = {
             title: propertyData.title,
