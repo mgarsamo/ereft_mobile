@@ -116,35 +116,14 @@ export const AuthProvider = ({ children }) => {
     initializeAuth();
   }, []);
 
-  // Login function - uses local user storage and backend
+  // Login function - uses backend authentication first, local as fallback
   const login = async (username, password) => {
     try {
       console.log('🔐 AuthContext: Starting login process for:', username);
       setIsLoading(true);
       
-      // First try to authenticate with locally stored users (including registered users)
-      console.log('🔐 AuthContext: Attempting local authentication...');
-      const localUser = await UserStorage.authenticateUser(username, password);
-      
-      if (localUser) {
-        console.log('🔐 AuthContext: Local authentication successful for user:', localUser.username);
-        const authToken = UserStorage.generateAuthToken(localUser.id);
-        
-        // Store token and user data
-        await AsyncStorage.setItem('authToken', authToken);
-        await AsyncStorage.setItem('user', JSON.stringify(localUser));
-        
-        setToken(authToken);
-        setUser(localUser);
-        setIsAuthenticated(true);
-        
-        console.log('🔐 AuthContext: User logged in successfully:', localUser.username);
-        return { success: true };
-      }
-      
-      console.log('🔐 AuthContext: Local authentication failed, trying backend...');
-      
-      // If no local user found, try real backend authentication
+      // ALWAYS try backend authentication first for real tokens
+      console.log('🔐 AuthContext: Attempting backend authentication...');
       try {
         const response = await api.post('/api/auth/login/', {
           username,
@@ -165,13 +144,36 @@ export const AuthProvider = ({ children }) => {
         return { success: true };
       } catch (apiError) {
         console.log('🔐 AuthContext: Backend authentication failed:', apiError.message);
-        // If both local and backend fail, show helpful message
+        
+        // Only fall back to local if backend is completely unavailable
+        if (apiError.code === 'NETWORK_ERROR' || apiError.message === 'Network Error') {
+          console.log('🔐 AuthContext: Network error, trying local authentication as fallback...');
+          const localUser = await UserStorage.authenticateUser(username, password);
+          
+          if (localUser) {
+            console.log('🔐 AuthContext: Local authentication successful for user:', localUser.username);
+            const authToken = UserStorage.generateAuthToken(localUser.id);
+            
+            // Store token and user data
+            await AsyncStorage.setItem('authToken', authToken);
+            await AsyncStorage.setItem('user', JSON.stringify(localUser));
+            
+            setToken(authToken);
+            setUser(localUser);
+            setIsAuthenticated(true);
+            
+            console.log('🔐 AuthContext: User logged in successfully via local fallback:', localUser.username);
+            return { success: true };
+          }
+        }
+        
+        // If both backend and local fail, show helpful message
         let errorMessage = 'Invalid username or password.';
         
-        if (apiError.code === 'NETWORK_ERROR' || apiError.message === 'Network Error') {
-          errorMessage = 'Invalid username or password. If you haven\'t registered yet, please sign up first.';
-        } else if (apiError.response?.status === 401) {
+        if (apiError.response?.status === 401) {
           errorMessage = 'Invalid username or password. Make sure you\'ve registered an account.';
+        } else if (apiError.code === 'NETWORK_ERROR' || apiError.message === 'Network Error') {
+          errorMessage = 'Network error. Please check your connection and try again.';
         }
         
         return {
