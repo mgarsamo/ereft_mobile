@@ -964,6 +964,8 @@ export const PropertyProvider = ({ children }) => {
         clearSearchResults,
         addProperty,
         updateProperty,
+        getSafeProperties,
+        getSafeFeaturedProperties,
         
         // State setters
         setProperties,

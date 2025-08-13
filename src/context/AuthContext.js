@@ -34,7 +34,7 @@ export const AuthProvider = ({ children }) => {
     (config) => {
       // Use the current token from state (this will be updated when token changes)
       if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+        config.headers.Authorization = `Token ${token}`;
       }
       return config;
     },
