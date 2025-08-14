@@ -88,19 +88,45 @@ const RegisterScreen = () => {
       });
 
       if (result.success) {
-        Alert.alert(
-          'Registration Successful!', 
-          result.message || 'Your account has been created successfully. You are now logged in.',
-          [
-            { 
-              text: 'OK', 
-              onPress: () => {
-                // User is already logged in by the register function
-                // Navigation will be handled by the auth state change
+        if (result.requiresVerification) {
+          // Enhanced registration requires email verification
+          Alert.alert(
+            'Registration Successful!', 
+            result.message,
+            [
+              { 
+                text: 'Verify Email', 
+                onPress: () => {
+                  // Navigate to email verification screen
+                  navigation.navigate('EmailVerification', {
+                    token: result.verificationToken || 'manual',
+                    email: result.email,
+                    userId: result.userId
+                  });
+                }
+              },
+              {
+                text: 'Later',
+                style: 'cancel'
               }
-            }
-          ]
-        );
+            ]
+          );
+        } else {
+          // Legacy registration - user is already logged in
+          Alert.alert(
+            'Registration Successful!', 
+            result.message || 'Your account has been created successfully. You are now logged in.',
+            [
+              { 
+                text: 'OK', 
+                onPress: () => {
+                  // User is already logged in by the register function
+                  // Navigation will be handled by the auth state change
+                }
+              }
+            ]
+          );
+        }
       } else {
         Alert.alert('Registration Failed', result.error);
       }

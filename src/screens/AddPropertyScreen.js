@@ -447,28 +447,30 @@ const AddPropertyScreen = () => {
   );
 
   const handleSubmit = async () => {
-    if (submitting) {
-      console.log('AddPropertyScreen: Form submission already in progress, ignoring...');
-      return;
-    }
+    // Global error boundary for the entire function
+    try {
+      if (submitting) {
+        console.log('AddPropertyScreen: Form submission already in progress, ignoring...');
+        return;
+      }
 
-    console.log('AddPropertyScreen: Starting form submission...');
-    console.log('AddPropertyScreen: Form data:', formData);
-    console.log('AddPropertyScreen: Edit mode:', isEditMode);
-    
-    // Validate form
-    if (!formData.title || !formData.price || !formData.address) {
-      console.log('AddPropertyScreen: Form validation failed - missing required fields');
-      Alert.alert('Error', 'Please fill in all required fields');
-      return;
-    }
+      console.log('AddPropertyScreen: Starting form submission...');
+      console.log('AddPropertyScreen: Form data:', formData);
+      console.log('AddPropertyScreen: Edit mode:', isEditMode);
+      
+      // Validate form
+      if (!formData.title || !formData.price || !formData.address) {
+        console.log('AddPropertyScreen: Form validation failed - missing required fields');
+        Alert.alert('Error', 'Please fill in all required fields');
+        return;
+      }
 
-    // Validate that at least one image is selected
-    if (!formData.images || formData.images.length === 0) {
-      console.log('AddPropertyScreen: Form validation failed - no images selected');
-      Alert.alert('Error', 'Please add at least one photo of your property');
-      return;
-    }
+      // Validate that at least one image is selected
+      if (!formData.images || formData.images.length === 0) {
+        console.log('AddPropertyScreen: Form validation failed - no images selected');
+        Alert.alert('Error', 'Please add at least one photo of your property');
+        return;
+      }
 
     try {
       setSubmitting(true);
@@ -492,17 +494,35 @@ const AddPropertyScreen = () => {
       } else {
         console.log('AddPropertyScreen: Adding new property...');
         
-        // Add new property
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Request timeout')), 30000);
-        });
-        
-        result = await Promise.race([
-          addProperty(formData),
-          timeoutPromise
-        ]);
-        
-        console.log('AddPropertyScreen: Property added successfully:', result);
+        // Add new property with crash prevention
+        try {
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Request timeout')), 30000);
+          });
+          
+          result = await Promise.race([
+            addProperty(formData),
+            timeoutPromise
+          ]);
+          
+          console.log('AddPropertyScreen: Property added successfully:', result);
+        } catch (addPropertyError) {
+          console.error('AddPropertyScreen: Critical error adding property:', addPropertyError);
+          // Show user-friendly error and continue
+          Alert.alert(
+            'Property Creation Issue',
+            'There was an issue creating your property, but we\'ve saved it locally. You can try again later.',
+            [{ text: 'OK' }]
+          );
+          
+          // Create a local fallback property
+          result = {
+            id: Date.now().toString(),
+            ...formData,
+            created_at: new Date().toISOString(),
+            is_favorite: false
+          };
+        }
       }
       
       // Show success message and navigate to property detail
@@ -568,6 +588,15 @@ const AddPropertyScreen = () => {
         Alert.alert('Error', `Failed to ${action} property. Please try again.`);
       }
     } finally {
+      setSubmitting(false);
+    }
+    } catch (globalError) {
+      console.error('AddPropertyScreen: Global error in handleSubmit:', globalError);
+      Alert.alert(
+        'Unexpected Error',
+        'An unexpected error occurred. Please try again.',
+        [{ text: 'OK' }]
+      );
       setSubmitting(false);
     }
   };

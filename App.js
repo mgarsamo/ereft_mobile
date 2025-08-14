@@ -19,6 +19,7 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import PhoneVerificationScreen from './src/screens/PhoneVerificationScreen';
+import EmailVerificationScreen from './src/screens/EmailVerificationScreen';
 import FeaturedScreen from './src/screens/FeaturedScreen';
 
 // Import context
@@ -111,6 +112,7 @@ function AuthStackNavigator() {
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="PhoneVerification" component={PhoneVerificationScreen} />
+      <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
     </Stack.Navigator>
   );
 }

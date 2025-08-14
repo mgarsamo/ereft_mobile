@@ -29,16 +29,49 @@ export const AuthProvider = ({ children }) => {
     },
   });
 
-  // Add token to requests if available - FIXED: Use current token from state
+  // Add token to requests if available - Enhanced for JWT and legacy tokens
   api.interceptors.request.use(
     (config) => {
       // Use the current token from state (this will be updated when token changes)
       if (token) {
-        config.headers.Authorization = `Token ${token}`;
+        // Check if it's a JWT token (Bearer) or legacy token
+        if (token.includes('.') && token.length > 100) {
+          // JWT token
+          config.headers.Authorization = `Bearer ${token}`;
+        } else {
+          // Legacy token
+          config.headers.Authorization = `Token ${token}`;
+        }
       }
       return config;
     },
     (error) => {
+      return Promise.reject(error);
+    }
+  );
+
+  // Add response interceptor for token refresh
+  api.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+      const originalRequest = error.config;
+      
+      // If we get a 401 and haven't tried to refresh yet
+      if (error.response?.status === 401 && !originalRequest._retry) {
+        originalRequest._retry = true;
+        
+        try {
+          // Try to refresh the token
+          const refreshResult = await refreshAuthToken();
+          if (refreshResult.success) {
+            // Retry the original request with new token
+            return api(originalRequest);
+          }
+        } catch (refreshError) {
+          console.log('🔐 AuthContext: Token refresh failed, redirecting to login');
+        }
+      }
+      
       return Promise.reject(error);
     }
   );
@@ -116,73 +149,97 @@ export const AuthProvider = ({ children }) => {
     initializeAuth();
   }, []);
 
-  // Login function - uses backend authentication first, local as fallback
+  // Enhanced Login function with JWT authentication
   const login = async (username, password) => {
     try {
-      console.log('🔐 AuthContext: Starting login process for:', username);
+      console.log('🔐 AuthContext: Starting enhanced login process for:', username);
       setIsLoading(true);
       
-      // ALWAYS try backend authentication first for real tokens
-      console.log('🔐 AuthContext: Attempting backend authentication...');
+      // Try enhanced JWT authentication first
+      console.log('🔐 AuthContext: Attempting enhanced JWT authentication...');
       try {
-        const response = await api.post('/api/auth/login/', {
+        const response = await api.post('/api/auth/enhanced-login/', {
           username,
           password,
         });
 
-        const { token: authToken, user: userData } = response.data;
+        const { access_token, refresh_token, user: userData } = response.data;
         
-        // Store token and user data
-        await AsyncStorage.setItem('authToken', authToken);
+        // Store JWT tokens and user data
+        await AsyncStorage.setItem('authToken', access_token);
+        await AsyncStorage.setItem('refreshToken', refresh_token);
         await AsyncStorage.setItem('user', JSON.stringify(userData));
         
-        setToken(authToken);
+        setToken(access_token);
         setUser(userData);
         setIsAuthenticated(true);
         
-        console.log('🔐 AuthContext: Backend authentication successful for user:', userData.username);
+        console.log('🔐 AuthContext: Enhanced JWT authentication successful for user:', userData.username);
         return { success: true };
       } catch (apiError) {
-        console.log('🔐 AuthContext: Backend authentication failed:', apiError.message);
+        console.log('🔐 AuthContext: Enhanced JWT authentication failed, trying legacy token auth...');
         
-        // Only fall back to local if backend is completely unavailable
-        if (apiError.code === 'NETWORK_ERROR' || apiError.message === 'Network Error') {
-          console.log('🔐 AuthContext: Network error, trying local authentication as fallback...');
-          const localUser = await UserStorage.authenticateUser(username, password);
+        // Fall back to legacy token authentication
+        try {
+          const response = await api.post('/api/auth/login/', {
+            username,
+            password,
+          });
+
+          const { token: authToken, user: userData } = response.data;
           
-          if (localUser) {
-            console.log('🔐 AuthContext: Local authentication successful for user:', localUser.username);
-            const authToken = UserStorage.generateAuthToken(localUser.id);
+          // Store token and user data
+          await AsyncStorage.setItem('authToken', authToken);
+          await AsyncStorage.setItem('user', JSON.stringify(userData));
+          
+          setToken(authToken);
+          setUser(userData);
+          setIsAuthenticated(true);
+          
+          console.log('🔐 AuthContext: Legacy token authentication successful for user:', userData.username);
+          return { success: true };
+        } catch (legacyError) {
+          console.log('🔐 AuthContext: Legacy authentication failed:', legacyError.message);
+          
+          // Only fall back to local if backend is completely unavailable
+          if (legacyError.code === 'NETWORK_ERROR' || legacyError.message === 'Network Error') {
+            console.log('🔐 AuthContext: Network error, trying local authentication as fallback...');
+            const localUser = await UserStorage.authenticateUser(username, password);
             
-            // Store token and user data
-            await AsyncStorage.setItem('authToken', authToken);
-            await AsyncStorage.setItem('user', JSON.stringify(localUser));
-            
-            setToken(authToken);
-            setUser(localUser);
-            setIsAuthenticated(true);
-            
-            console.log('🔐 AuthContext: User logged in successfully via local fallback:', localUser.username);
-            return { success: true };
+            if (localUser) {
+              console.log('🔐 AuthContext: Local authentication successful for user:', localUser.username);
+              const authToken = UserStorage.generateAuthToken(localUser.id);
+              
+              // Store token and user data
+              await AsyncStorage.setItem('authToken', authToken);
+              await AsyncStorage.setItem('user', JSON.stringify(localUser));
+              
+              setToken(authToken);
+              setUser(localUser);
+              setIsAuthenticated(true);
+              
+              console.log('🔐 AuthContext: User logged in successfully via local fallback:', localUser.username);
+              return { success: true };
+            }
           }
+          
+          // If both backend and local fail, show helpful message
+          let errorMessage = 'Invalid username or password.';
+          
+          if (legacyError.response?.status === 401) {
+            errorMessage = 'Invalid username or password. Make sure you\'ve registered an account.';
+          } else if (legacyError.code === 'NETWORK_ERROR' || legacyError.message === 'Network Error') {
+            errorMessage = 'Network error. Please check your connection and try again.';
+          }
+          
+          return {
+            success: false,
+            error: errorMessage,
+          };
         }
-        
-        // If both backend and local fail, show helpful message
-        let errorMessage = 'Invalid username or password.';
-        
-        if (apiError.response?.status === 401) {
-          errorMessage = 'Invalid username or password. Make sure you\'ve registered an account.';
-        } else if (apiError.code === 'NETWORK_ERROR' || apiError.message === 'Network Error') {
-          errorMessage = 'Network error. Please check your connection and try again.';
-        }
-        
-        return {
-          success: false,
-          error: errorMessage,
-        };
       }
     } catch (error) {
-      console.error('🔐 AuthContext: Login error:', error);
+      console.error('🔐 AuthContext: Enhanced login error:', error);
       
       return {
         success: false,
@@ -194,7 +251,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Register function - creates real persistent accounts
+  // Enhanced Register function with email verification
   const register = async (userData) => {
     try {
       setIsLoading(true);
@@ -216,28 +273,31 @@ export const AuthProvider = ({ children }) => {
         };
       }
       
-      // Try real backend registration first
+      // Try enhanced backend registration with email verification first
       try {
-        const response = await api.post('/api/auth/register/', userData);
+        console.log('🔐 AuthContext: Attempting enhanced registration with email verification...');
+        const response = await api.post('/api/auth/enhanced-register/', userData);
         
-        const { token: authToken, user: newUser } = response.data;
+        // Enhanced registration returns message about email verification
+        const { message, user_id, email } = response.data;
         
-        // Store token and user data
-        await AsyncStorage.setItem('authToken', authToken);
-        await AsyncStorage.setItem('user', JSON.stringify(newUser));
+        console.log('🔐 AuthContext: Enhanced registration successful, email verification required');
         
-        setToken(authToken);
-        setUser(newUser);
-        setIsAuthenticated(true);
-        
-        return { success: true, message: 'Account created successfully!' };
+        return { 
+          success: true, 
+          message: message,
+          requiresVerification: true,
+          userId: user_id,
+          email: email
+        };
       } catch (apiError) {
-        // If backend fails, create a real local account
-        console.log('Backend registration failed, creating local account...');
+        console.log('🔐 AuthContext: Enhanced registration failed, trying legacy registration...');
         
+        // Fall back to legacy registration
         try {
-          const newUser = await UserStorage.saveUser(userData);
-          const authToken = UserStorage.generateAuthToken(newUser.id);
+          const response = await api.post('/api/auth/register/', userData);
+          
+          const { token: authToken, user: newUser } = response.data;
           
           // Store token and user data
           await AsyncStorage.setItem('authToken', authToken);
@@ -247,22 +307,149 @@ export const AuthProvider = ({ children }) => {
           setUser(newUser);
           setIsAuthenticated(true);
           
-          return { success: true, message: 'Account created successfully! You can now login with your credentials.' };
-        } catch (localError) {
-          return {
-            success: false,
-            error: localError.message || 'Registration failed. Please try again.',
-          };
+          return { success: true, message: 'Account created successfully!' };
+        } catch (legacyError) {
+          console.log('🔐 AuthContext: Legacy registration failed, creating local account...');
+          
+          // If both backend methods fail, create a real local account
+          try {
+            const newUser = await UserStorage.saveUser(userData);
+            const authToken = UserStorage.generateAuthToken(newUser.id);
+            
+            // Store token and user data
+            await AsyncStorage.setItem('authToken', authToken);
+            await AsyncStorage.setItem('user', JSON.stringify(newUser));
+            
+            setToken(authToken);
+            setUser(newUser);
+            setIsAuthenticated(true);
+            
+            return { success: true, message: 'Account created successfully! You can now login with your credentials.' };
+          } catch (localError) {
+            return {
+              success: false,
+              error: localError.message || 'Registration failed. Please try again.',
+            };
+          }
         }
       }
     } catch (error) {
-      console.error('Register error:', error);
+      console.error('🔐 AuthContext: Enhanced register error:', error);
       return {
         success: false,
         error: 'Registration failed. Please check your information and try again.',
       };
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Email verification function
+  const verifyEmail = async (token) => {
+    try {
+      console.log('🔐 AuthContext: Verifying email with token...');
+      setIsLoading(true);
+      
+      const response = await api.post(`/api/auth/verify-email/${token}/`);
+      
+      const { access_token, refresh_token, user: userData, message } = response.data;
+      
+      // Store JWT tokens and user data
+      await AsyncStorage.setItem('authToken', access_token);
+      await AsyncStorage.setItem('refreshToken', refresh_token);
+      await AsyncStorage.setItem('user', JSON.stringify(userData));
+      
+      setToken(access_token);
+      setUser(userData);
+      setIsAuthenticated(true);
+      
+      console.log('🔐 AuthContext: Email verification successful for user:', userData.username);
+      return { success: true, message: message };
+      
+    } catch (error) {
+      console.error('🔐 AuthContext: Email verification error:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Email verification failed. Please try again.',
+      };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // SMS verification functions
+  const sendSmsVerification = async (phone) => {
+    try {
+      console.log('🔐 AuthContext: Sending SMS verification to:', phone);
+      setIsLoading(true);
+      
+      const response = await api.post('/api/auth/send-sms-verification/', { phone });
+      
+      console.log('🔐 AuthContext: SMS verification code sent successfully');
+      return { success: true, message: response.data.message };
+      
+    } catch (error) {
+      console.error('🔐 AuthContext: SMS verification error:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Failed to send SMS verification. Please try again.',
+      };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const verifySmsCode = async (phone, code) => {
+    try {
+      console.log('🔐 AuthContext: Verifying SMS code for phone:', phone);
+      setIsLoading(true);
+      
+      const response = await api.post('/api/auth/verify-sms-code/', { phone, code });
+      
+      console.log('🔐 AuthContext: SMS verification successful');
+      return { success: true, message: response.data.message };
+      
+    } catch (error) {
+      console.error('🔐 AuthContext: SMS code verification error:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || 'SMS verification failed. Please try again.',
+      };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Token refresh function
+  const refreshAuthToken = async () => {
+    try {
+      console.log('🔐 AuthContext: Refreshing authentication token...');
+      
+      const refreshToken = await AsyncStorage.getItem('refreshToken');
+      if (!refreshToken) {
+        throw new Error('No refresh token available');
+      }
+      
+      const response = await api.post('/api/auth/refresh-token/', {
+        refresh_token: refreshToken
+      });
+      
+      const { access_token, refresh_token } = response.data;
+      
+      // Store new tokens
+      await AsyncStorage.setItem('authToken', access_token);
+      await AsyncStorage.setItem('refreshToken', refresh_token);
+      
+      setToken(access_token);
+      
+      console.log('🔐 AuthContext: Token refreshed successfully');
+      return { success: true };
+      
+    } catch (error) {
+      console.error('🔐 AuthContext: Token refresh error:', error);
+      // If refresh fails, user needs to login again
+      await logout();
+      return { success: false, error: 'Session expired. Please login again.' };
     }
   };
 
@@ -837,6 +1024,11 @@ export const AuthProvider = ({ children }) => {
     deleteAccount,
     checkAuthStatus,
     api,
+    // Enhanced authentication functions
+    verifyEmail,
+    sendSmsVerification,
+    verifySmsCode,
+    refreshAuthToken,
   };
 
   return (
