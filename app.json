@@ -2,7 +2,7 @@
   "expo": {
     "name": "Ereft",
     "slug": "ereft",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "sdkVersion": "53.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -26,7 +26,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mgarsamo.ereft",
-      "buildNumber": "18",
+      "buildNumber": "19",
       "appStoreUrl": "https://apps.apple.com/app/ereft/id1234567890",
       "associatedDomains": ["applinks:ereft.onrender.com"],
       "infoPlist": {
