@@ -1,7 +1,6 @@
 {
   "cli": {
-    "version": ">= 5.0.0",
-    "appVersionSource": "remote"
+    "version": ">= 5.9.1"
   },
   "build": {
     "development": {
@@ -11,16 +10,12 @@
     "preview": {
       "distribution": "internal",
       "ios": {
-        "simulator": false
+        "simulator": true
       }
     },
     "production": {
-      "autoIncrement": true,
       "ios": {
-        "simulator": false
-      },
-      "android": {
-        "buildType": "apk"
+        "resourceClass": "m-medium"
       }
     }
   },
@@ -28,12 +23,8 @@
     "production": {
       "ios": {
         "appleId": "mgarsamo@icloud.com",
-        "appleTeamId": "7U44S23G23",
-        "ascAppId": "6749813979"
-      },
-      "android": {
-        "serviceAccountKeyPath": "./path/to/service-account-key.json",
-        "track": "production"
+        "ascAppId": "6749813979",
+        "appleTeamId": "7U44S23G23"
       }
     }
   }

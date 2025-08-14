@@ -8,7 +8,11 @@
     "ios": "expo run:ios",
     "start": "expo start",
     "test": "jest",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "build:ios": "eas build --platform ios --profile production",
+    "build:android": "eas build --platform android --profile production",
+    "submit:ios": "eas submit --platform ios --profile production",
+    "submit:android": "eas submit --platform android --profile production"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.1.2",

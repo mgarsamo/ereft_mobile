@@ -2,12 +2,14 @@
   "expo": {
     "name": "Ereft",
     "slug": "ereft",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "sdkVersion": "53.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "ereft",
     "description": "Find your perfect home in Ethiopia. Browse houses, apartments, and land across Ethiopian cities with advanced search, maps, and local address system.",
+    "privacy": "https://ereft.onrender.com/privacy",
+    "category": "Real Estate",
 
     "primaryColor": "#000000",
     "icon": "./assets/icon.png",
@@ -24,13 +26,18 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mgarsamo.ereft",
-      "buildNumber": "1",
+      "buildNumber": "18",
+      "appStoreUrl": "https://apps.apple.com/app/ereft/id1234567890",
+      "associatedDomains": ["applinks:ereft.onrender.com"],
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Ereft uses your location to show nearby properties and help you find homes in your area.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Ereft uses your location to show nearby properties and help you find homes in your area.",
         "NSCameraUsageDescription": "Ereft needs camera access to let you take photos of properties.",
         "NSPhotoLibraryUsageDescription": "Ereft needs photo library access to let you select property images.",
         "ITSAppUsesNonExemptEncryption": false,
+        "NSMicrophoneUsageDescription": "Ereft needs microphone access for voice notes on properties.",
+        "NSFaceIDUsageDescription": "Ereft uses Face ID for secure login and authentication.",
+        "UIBackgroundModes": ["location", "fetch"],
         "CFBundleURLTypes": [
           {
             "CFBundleURLName": "OAuth",
@@ -39,7 +46,7 @@
         ]
       },
       "config": {
-        "googleMapsApiKey": "AIzaSyBQqQqQqQqQqQqQqQqQqQqQqQqQqQqQqQ"
+        "googleMapsApiKey": "AIzaSyAWis-jNmUwxCikA2FG7QqLi-nz7jEvadY"
       }
     },
     "android": {
@@ -59,7 +66,7 @@
       ],
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyBQqQqQqQqQqQqQqQqQqQqQqQqQqQqQqQ"
+          "apiKey": "AIzaSyAWis-jNmUwxCikA2FG7QqLi-nz7jEvadY"
         }
       },
       "intentFilters": [
@@ -97,6 +104,7 @@
       "eas": {
         "projectId": "97281152-73eb-4305-9f84-baff3af1a997"
       }
-    }
+    },
+    "owner": "mgarsamo"
   }
 }
