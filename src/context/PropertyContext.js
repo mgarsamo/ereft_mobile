@@ -906,17 +906,20 @@ export const PropertyProvider = ({ children }) => {
     setSearchFilters({});
   };
 
-  // Add new property with crash prevention
+  // Add new property with crash prevention - PRODUCTION READY
   const addProperty = async (propertyData) => {
     // Wrapper try-catch to prevent any crashes
     try {
       console.log('🏠 PropertyContext: Adding new property:', propertyData);
       setIsLoading(true);
 
+      // Initialize imageUrls at function scope to prevent ReferenceError
+      let imageUrls = [];
+      let cloudinaryUploadSuccess = false;
+
       if (api && isAuthenticated) {
         try {
           // Handle image uploads to Cloudinary first
-          let imageUrls = [];
           if (propertyData.images && propertyData.images.length > 0) {
             console.log('🏠 PropertyContext: Uploading images to Cloudinary...');
             try {
@@ -927,18 +930,21 @@ export const PropertyProvider = ({ children }) => {
               // If no images were uploaded successfully, continue with property creation
               if (imageUrls.length === 0) {
                 console.warn('🏠 PropertyContext: No images uploaded successfully, continuing with property creation');
+              } else {
+                cloudinaryUploadSuccess = true;
               }
             } catch (uploadError) {
               console.error('🏠 PropertyContext: Image upload failed:', uploadError);
               // Don't crash the app - continue with property creation without images
               console.log('🏠 PropertyContext: Continuing with property creation despite image upload failure');
+              imageUrls = []; // Ensure imageUrls is empty array on failure
             }
           }
 
-          // Prepare property data for backend
+          // Prepare property data for backend - PRODUCTION READY
           const propertyPayload = {
-            title: propertyData.title,
-            description: propertyData.description,
+            title: propertyData.title || '',
+            description: propertyData.description || '',
             price: parseFloat(propertyData.price) || 0,
             property_type: propertyData.propertyType || 'house',
             listing_type: propertyData.listingType || 'sale',
@@ -954,18 +960,21 @@ export const PropertyProvider = ({ children }) => {
             is_featured: false,
             is_active: true,
             is_published: true,
-            status: 'active'
+            status: 'active',
+            // Include images field with Cloudinary URLs
+            images: imageUrls.map(img => img.url || img) || []
           };
 
           console.log('🏠 PropertyContext: Sending property payload:', propertyPayload);
           
+          // Send to backend with proper error handling
           const response = await api.post('/api/properties/', propertyPayload);
           console.log('🏠 PropertyContext: Property added successfully:', response.data);
 
           // Add to local state with uploaded images
           const newProperty = {
             ...response.data,
-            images: imageUrls,
+            images: imageUrls, // Now properly scoped
             is_favorite: false
           };
 
@@ -979,12 +988,20 @@ export const PropertyProvider = ({ children }) => {
           return newProperty;
         } catch (apiError) {
           console.error('🏠 PropertyContext: API add property failed:', apiError.message);
+          
+          // Enhanced error logging for production debugging
+          if (apiError.response) {
+            console.error('🏠 PropertyContext: API Error Status:', apiError.response.status);
+            console.error('🏠 PropertyContext: API Error Data:', apiError.response.data);
+            console.error('🏠 PropertyContext: API Error Headers:', apiError.response.headers);
+          }
+          
           // Don't crash - create local property as fallback
           console.log('🏠 PropertyContext: Creating local property as fallback due to API failure');
           const localProperty = {
             id: Date.now().toString(),
             ...propertyData,
-            images: imageUrls,
+            images: imageUrls, // Now properly scoped
             created_at: new Date().toISOString(),
             is_favorite: false,
             owner: user || { name: 'Local User' }
@@ -998,6 +1015,7 @@ export const PropertyProvider = ({ children }) => {
         const localProperty = {
           id: Date.now().toString(),
           ...propertyData,
+          images: imageUrls, // Now properly scoped
           created_at: new Date().toISOString(),
           is_favorite: false,
           owner: user || { name: 'Local User' }
@@ -1021,7 +1039,7 @@ export const PropertyProvider = ({ children }) => {
         area_sqm: propertyData.area_sqm || 0,
         address: propertyData.address || '',
         city: propertyData.city || '',
-        images: [],
+        images: [], // Always ensure images is an array
         created_at: new Date().toISOString(),
         is_favorite: false,
         owner: user || { name: 'Local User' }
@@ -1034,16 +1052,18 @@ export const PropertyProvider = ({ children }) => {
     }
   };
 
-  // Update existing property
+  // Update existing property - PRODUCTION READY
   const updateProperty = async (propertyId, propertyData) => {
     try {
       console.log('🏠 PropertyContext: Updating property:', propertyId, propertyData);
       setIsLoading(true);
 
+      // Initialize imageUrls at function scope to prevent ReferenceError
+      let imageUrls = [];
+
       if (api && isAuthenticated) {
         try {
           // Handle image uploads to Cloudinary first if new images are provided
-          let imageUrls = [];
           if (propertyData.images && propertyData.images.length > 0) {
             console.log('🏠 PropertyContext: Uploading new images to Cloudinary for update...');
             try {
@@ -1059,25 +1079,28 @@ export const PropertyProvider = ({ children }) => {
               console.error('🏠 PropertyContext: Image upload failed during update:', uploadError);
               // Don't crash the app - continue with property update without images
               console.log('🏠 PropertyContext: Continuing with property update despite image upload failure');
+              imageUrls = []; // Ensure imageUrls is empty array on failure
             }
           }
 
-          // Prepare property data for backend
+          // Prepare property data for backend - PRODUCTION READY
           const propertyPayload = {
-            title: propertyData.title,
-            description: propertyData.description,
-            price: parseFloat(propertyData.price),
-            property_type: propertyData.propertyType,
-            listing_type: propertyData.listingType,
+            title: propertyData.title || '',
+            description: propertyData.description || '',
+            price: parseFloat(propertyData.price) || 0,
+            property_type: propertyData.propertyType || 'house',
+            listing_type: propertyData.listingType || 'sale',
             bedrooms: parseInt(propertyData.bedrooms) || 0,
             bathrooms: parseFloat(propertyData.bathrooms) || 0,
             area_sqm: parseFloat(propertyData.area_sqm) || 0,
-            address: propertyData.address,
-            city: propertyData.city,
-            sub_city: propertyData.sub_city,
-            kebele: propertyData.kebele,
-            street_name: propertyData.street_name,
-            house_number: propertyData.house_number
+            address: propertyData.address || '',
+            city: propertyData.city || '',
+            sub_city: propertyData.sub_city || '',
+            kebele: propertyData.kebele || '',
+            street_name: propertyData.street_name || '',
+            house_number: propertyData.house_number || '',
+            // Include images field with Cloudinary URLs
+            images: imageUrls.map(img => img.url || img) || []
           };
 
           console.log('🏠 PropertyContext: Sending update payload:', propertyPayload);
