@@ -117,9 +117,9 @@ export const PropertyProvider = ({ children }) => {
           const imageUri = images[i];
           console.log(`🏠 PropertyContext: Processing image ${i + 1}/${images.length}`);
           
-          // Validate image URI
-          if (!imageUri || typeof imageUri !== 'string') {
-            console.warn(`🏠 PropertyContext: Invalid image URI for image ${i + 1}, skipping`);
+          // Validate image object (Expo ImagePicker returns {uri, type, name})
+          if (!imageUri || typeof imageUri !== 'object' || !imageUri.uri) {
+            console.warn(`🏠 PropertyContext: Invalid image object for image ${i + 1}, skipping`);
             continue;
           }
 
@@ -129,9 +129,9 @@ export const PropertyProvider = ({ children }) => {
           // Safely append file with proper error handling
           try {
             formData.append('file', {
-              uri: imageUri,
-              type: 'image/jpeg',
-              name: `property_image_${Date.now()}_${i}.jpg`
+              uri: imageUri.uri,
+              type: imageUri.type || 'image/jpeg',
+              name: imageUri.name || `property_image_${Date.now()}_${i}.jpg`
             });
             formData.append('upload_preset', ENV.CLOUDINARY_UPLOAD_PRESET);
             formData.append('cloud_name', ENV.CLOUDINARY_CLOUD_NAME);
