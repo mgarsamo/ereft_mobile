@@ -46,27 +46,6 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
     }
   };
 
-  // Complete OAuth flow with authorization code
-  const completeOAuthFlow = async (code, returnedState) => {
-    try {
-      console.log('🔐 GoogleSignIn: Completing OAuth flow with code');
-      
-      // Call backend to exchange code for tokens and user info
-      const backendResult = await loginWithGoogle(code);
-      
-      if (backendResult.success) {
-        console.log('🔐 GoogleSignIn: Backend authentication successful');
-        onSuccess?.(backendResult);
-      } else {
-        console.error('🔐 GoogleSignIn: Backend authentication failed:', backendResult.message);
-        onError?.(backendResult.message);
-      }
-    } catch (error) {
-      console.error('🔐 GoogleSignIn: Error completing OAuth flow:', error);
-      onError?.(error.message || 'OAuth completion failed');
-    }
-  };
-
   // Handle deep linking for OAuth completion
   const handleDeepLink = (event) => {
     console.log('🔐 GoogleSignIn: Deep link received:', event.url);
@@ -148,22 +127,42 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
         { encoding: Crypto.CryptoEncoding.HEX }
       );
       
-      // Build OAuth URL with proper parameters
-      const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
-      authUrl.searchParams.set('client_id', ENV.GOOGLE_CLIENT_ID);
-      authUrl.searchParams.set('redirect_uri', 'https://ereft.onrender.com/oauth/');
-      authUrl.searchParams.set('response_type', 'code');
-      authUrl.searchParams.set('scope', 'openid email profile');
-      authUrl.searchParams.set('state', state);
-      authUrl.searchParams.set('access_type', 'offline');
-      authUrl.searchParams.set('prompt', 'consent');
+      // Use web client ID since Google only allows HTTPS redirects
+      const clientId = ENV.GOOGLE_WEB_CLIENT_ID;
       
-      console.log('🔐 GoogleSignIn: OAuth URL:', authUrl.toString());
+      // Use the HTTPS redirect URI that Google accepts (per .cursorrules)
+      const redirectUri = 'https://ereft.onrender.com/oauth';
       
-      // Open OAuth in WebBrowser
+      // For WebBrowser to work properly, we need to use the SAME redirect URI
+      // that Google will redirect to, not a different success URL
+      const webBrowserRedirectUri = 'https://ereft.onrender.com/oauth';
+      
+      console.log('🔐 GoogleSignIn: Client ID:', clientId);
+      console.log('🔐 GoogleSignIn: Redirect URI:', redirectUri);
+      console.log('🔐 GoogleSignIn: WebBrowser Redirect URI:', webBrowserRedirectUri);
+      
+      // Build the Google OAuth URL manually for maximum control
+      const googleOAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+      googleOAuthUrl.searchParams.append('client_id', clientId);
+      googleOAuthUrl.searchParams.append('redirect_uri', redirectUri);
+      googleOAuthUrl.searchParams.append('response_type', 'code');
+      googleOAuthUrl.searchParams.append('scope', 'openid profile email');
+      googleOAuthUrl.searchParams.append('state', state);
+      googleOAuthUrl.searchParams.append('access_type', 'offline');
+      googleOAuthUrl.searchParams.append('prompt', 'consent');
+      
+      const authUrl = googleOAuthUrl.toString();
+      console.log('🔐 GoogleSignIn: Auth URL generated');
+      
+      // Open the OAuth URL in a web browser
+      // Use the SAME redirect URI that Google will redirect to
       const result = await WebBrowser.openAuthSessionAsync(
-        authUrl.toString(),
-        'ereft://oauth'
+        authUrl,
+        webBrowserRedirectUri,  // Use the same redirect URI for WebBrowser
+        {
+          showInRecents: true,
+          createTask: false
+        }
       );
       
       console.log('🔐 GoogleSignIn: WebBrowser result:', result);
@@ -192,7 +191,7 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
             console.log('🔐 GoogleSignIn: Attempting to extract auth data from HTML response...');
             
             // Make a request to the backend to get the current OAuth status
-            const response = await fetch('https://ereft.onrender.com/oauth/');
+            const response = await fetch('https://ereft.onrender.com/oauth');
             const htmlText = await response.text();
             
             // Look for authentication data in the HTML
@@ -202,7 +201,7 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
             
             if (tokenMatch && userIdMatch && emailMatch) {
               const token = tokenMatch[1];
-              const userId = tokenMatch[1];
+              const userId = userIdMatch[1];
               const email = emailMatch[1];
               
               console.log('🔐 GoogleSignIn: Extracted auth data from HTML:', { token: token ? 'YES' : 'NO', userId, email });
