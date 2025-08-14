@@ -14,9 +14,8 @@ WebBrowser.maybeCompleteAuthSession();
 const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
   const { loginWithGoogle } = useAuth();
 
-  // Handle deep linking for OAuth completion
-  useEffect(() => {
-    const handleDeepLink = (event) => {
+  // Handle deep linking for OAuth completion - moved to component level
+  const handleDeepLink = (event) => {
       console.log('🔐 GoogleSignIn: Deep link received:', event.url);
       
       try {
@@ -85,7 +84,39 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
     return () => {
       subscription?.remove();
     };
-  }, []);
+      }, [handleDeepLink]);
+
+  // Complete OAuth flow with authentication token from deep link
+  const completeOAuthFlowWithToken = async (token, userId, email, firstName, lastName, googleId) => {
+    try {
+      console.log('🔐 GoogleSignIn: Completing OAuth flow with token from deep link');
+      console.log('🔐 GoogleSignIn: Token:', token ? 'YES' : 'NO');
+      console.log('🔐 GoogleSignIn: User ID:', userId);
+      console.log('🔐 GoogleSignIn: Email:', email);
+      
+      // Store authentication data
+      await AsyncStorage.setItem('authToken', token);
+      await AsyncStorage.setItem('userId', userId.toString());
+      await AsyncStorage.setItem('userEmail', email);
+      
+      // Call onSuccess with user data
+      onSuccess?.({
+        success: true,
+        token,
+        user: {
+          id: userId,
+          email,
+          first_name: firstName,
+          last_name: lastName,
+          google_id: googleId
+        }
+      });
+      
+    } catch (error) {
+      console.error('🔐 GoogleSignIn: Error completing OAuth flow with token:', error);
+      onError?.('Failed to complete authentication');
+    }
+  };
 
   // Complete OAuth flow with authorization code
   const completeOAuthFlow = async (code, returnedState) => {
