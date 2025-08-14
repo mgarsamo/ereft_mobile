@@ -14,78 +14,6 @@ WebBrowser.maybeCompleteAuthSession();
 const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
   const { loginWithGoogle } = useAuth();
 
-  // Handle deep linking for OAuth completion - moved to component level
-  const handleDeepLink = (event) => {
-      console.log('🔐 GoogleSignIn: Deep link received:', event.url);
-      
-      try {
-        const url = new URL(event.url);
-        console.log('🔐 GoogleSignIn: Parsed URL:', {
-          protocol: url.protocol,
-          hostname: url.hostname,
-          pathname: url.pathname,
-          search: url.search
-        });
-        
-        // Listen for ereft://oauth deep link with authentication data
-        // The correct way to parse ereft://oauth is:
-        // - protocol: 'ereft:'
-        // - hostname: 'oauth' (not pathname)
-        if (url.protocol === 'ereft:' && url.hostname === 'oauth') {
-          console.log('🔐 GoogleSignIn: Valid ereft://oauth deep link detected');
-          
-          const token = url.searchParams.get('token');
-          const userId = url.searchParams.get('user_id');
-          const email = url.searchParams.get('email');
-          const firstName = url.searchParams.get('first_name');
-          const lastName = url.searchParams.get('last_name');
-          const googleId = url.searchParams.get('google_id');
-          const error = url.searchParams.get('error');
-          
-          console.log('🔐 GoogleSignIn: Deep link parameters:', {
-            token: token ? 'YES' : 'NO',
-            userId: userId ? 'YES' : 'NO',
-            email: email ? 'YES' : 'NO',
-            firstName: firstName ? 'YES' : 'NO',
-            lastName: lastName ? 'YES' : 'NO',
-            googleId: googleId ? 'YES' : 'NO',
-            error: error || 'NO'
-          });
-          
-          if (error) {
-            console.error('🔐 GoogleSignIn: OAuth error from backend:', error);
-            onError?.(error);
-            return;
-          }
-          
-          if (token && userId && email) {
-            console.log('🔐 GoogleSignIn: Authentication data received via deep link');
-            console.log('🔐 GoogleSignIn: Token:', token ? 'YES' : 'NO');
-            console.log('🔐 GoogleSignIn: User ID:', userId);
-            console.log('🔐 GoogleSignIn: Email:', email);
-            
-            // Complete the OAuth flow with the authentication data
-            completeOAuthFlowWithToken(token, userId, email, firstName, lastName, googleId);
-          } else {
-            console.error('🔐 GoogleSignIn: Missing authentication data in deep link');
-            onError?.('Authentication data incomplete');
-          }
-        } else {
-          console.log('🔐 GoogleSignIn: Deep link ignored - not ereft://oauth');
-        }
-      } catch (error) {
-        console.error('🔐 GoogleSignIn: Deep link parsing error:', error);
-      }
-    };
-
-    // Listen for deep links
-    const subscription = Linking.addEventListener('url', handleDeepLink);
-    
-    return () => {
-      subscription?.remove();
-    };
-      }, [handleDeepLink]);
-
   // Complete OAuth flow with authentication token from deep link
   const completeOAuthFlowWithToken = async (token, userId, email, firstName, lastName, googleId) => {
     try {
@@ -139,34 +67,75 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
     }
   };
 
-  // Complete OAuth flow with authentication data (token, user info)
-  const completeOAuthFlowWithToken = async (token, userId, email, firstName, lastName, googleId) => {
+  // Handle deep linking for OAuth completion
+  const handleDeepLink = (event) => {
+    console.log('🔐 GoogleSignIn: Deep link received:', event.url);
+    
     try {
-      console.log('🔐 GoogleSignIn: Completing OAuth flow with authentication data');
-      console.log('🔐 GoogleSignIn: Real user data received:', { userId, email, firstName, lastName, googleId });
+      const url = new URL(event.url);
+      console.log('🔐 GoogleSignIn: Parsed URL:', {
+        protocol: url.protocol,
+        hostname: url.hostname,
+        pathname: url.pathname,
+        search: url.search
+      });
       
-      // Use the AuthContext function to complete the OAuth flow
-      const { completeGoogleOAuth } = useAuth();
-      
-      if (completeGoogleOAuth) {
-        const result = await completeGoogleOAuth(token, userId, email, firstName, lastName, googleId);
+      // Listen for ereft://oauth deep link with authentication data
+      if (url.protocol === 'ereft:' && url.hostname === 'oauth') {
+        console.log('🔐 GoogleSignIn: Valid ereft://oauth deep link detected');
         
-        if (result.success) {
-          console.log('🔐 GoogleSignIn: OAuth completed successfully with real user data');
-          onSuccess?.(result);
+        const token = url.searchParams.get('token');
+        const userId = url.searchParams.get('user_id');
+        const email = url.searchParams.get('email');
+        const firstName = url.searchParams.get('first_name');
+        const lastName = url.searchParams.get('last_name');
+        const googleId = url.searchParams.get('google_id');
+        const error = url.searchParams.get('error');
+        
+        console.log('🔐 GoogleSignIn: Deep link parameters:', {
+          token: token ? 'YES' : 'NO',
+          userId: userId ? 'YES' : 'NO',
+          email: email ? 'YES' : 'NO',
+          firstName: firstName ? 'YES' : 'NO',
+          lastName: lastName ? 'YES' : 'NO',
+          googleId: googleId ? 'YES' : 'NO',
+          error: error || 'NO'
+        });
+        
+        if (error) {
+          console.error('🔐 GoogleSignIn: OAuth error from backend:', error);
+          onError?.(error);
+          return;
+        }
+        
+        if (token && userId && email) {
+          console.log('🔐 GoogleSignIn: Authentication data received via deep link');
+          console.log('🔐 GoogleSignIn: Token:', token ? 'YES' : 'NO');
+          console.log('🔐 GoogleSignIn: User ID:', userId);
+          console.log('🔐 GoogleSignIn: Email:', email);
+          
+          // Complete the OAuth flow with the authentication data
+          completeOAuthFlowWithToken(token, userId, email, firstName, lastName, googleId);
         } else {
-          console.error('🔐 GoogleSignIn: OAuth completion failed:', result.message);
-          onError?.(result.message);
+          console.error('🔐 GoogleSignIn: Missing authentication data in deep link');
+          onError?.('Authentication data incomplete');
         }
       } else {
-        throw new Error('completeGoogleOAuth function not available in AuthContext');
+        console.log('🔐 GoogleSignIn: Deep link ignored - not ereft://oauth');
       }
-      
     } catch (error) {
-      console.error('🔐 GoogleSignIn: Error completing OAuth flow with token:', error);
-      onError?.(error.message || 'OAuth completion failed with token');
+      console.error('🔐 GoogleSignIn: Deep link parsing error:', error);
     }
   };
+
+  // Set up deep link listener
+  useEffect(() => {
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+    
+    return () => {
+      subscription?.remove();
+    };
+  }, []);
 
   const handleGoogleSignIn = async () => {
     try {
@@ -178,46 +147,25 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
         Math.random().toString(),
         { encoding: Crypto.CryptoEncoding.HEX }
       );
-
-      // Use web client ID for OAuth
-      const clientId = ENV.GOOGLE_WEB_CLIENT_ID;
       
-      // Use the HTTPS redirect URI that Google accepts
-      const redirectUri = 'https://ereft.onrender.com/oauth';
+      // Build OAuth URL with proper parameters
+      const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+      authUrl.searchParams.set('client_id', ENV.GOOGLE_CLIENT_ID);
+      authUrl.searchParams.set('redirect_uri', 'https://ereft.onrender.com/oauth/');
+      authUrl.searchParams.set('response_type', 'code');
+      authUrl.searchParams.set('scope', 'openid email profile');
+      authUrl.searchParams.set('state', state);
+      authUrl.searchParams.set('access_type', 'offline');
+      authUrl.searchParams.set('prompt', 'consent');
       
-      // For WebBrowser to work properly, we need to use the SAME redirect URI
-      // that Google will redirect to, not a different success URL
-      const webBrowserRedirectUri = 'https://ereft.onrender.com/oauth';
+      console.log('🔐 GoogleSignIn: OAuth URL:', authUrl.toString());
       
-      console.log('🔐 GoogleSignIn: Client ID:', clientId);
-      console.log('🔐 GoogleSignIn: Redirect URI:', redirectUri);
-      console.log('🔐 GoogleSignIn: WebBrowser Redirect URI:', webBrowserRedirectUri);
-      console.log('🔐 GoogleSignIn: Development mode:', __DEV__);
-
-      // Build the Google OAuth URL manually for maximum control
-      const googleOAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
-      googleOAuthUrl.searchParams.append('client_id', clientId);
-      googleOAuthUrl.searchParams.append('redirect_uri', redirectUri);
-      googleOAuthUrl.searchParams.append('response_type', 'code');
-      googleOAuthUrl.searchParams.append('scope', 'openid profile email');
-      googleOAuthUrl.searchParams.append('state', state);
-      googleOAuthUrl.searchParams.append('access_type', 'offline');
-      googleOAuthUrl.searchParams.append('prompt', 'consent');
-
-      const authUrl = googleOAuthUrl.toString();
-      console.log('🔐 GoogleSignIn: Auth URL generated');
-
-      // Open the OAuth URL in a web browser
-      // Use the SAME redirect URI that Google will redirect to
+      // Open OAuth in WebBrowser
       const result = await WebBrowser.openAuthSessionAsync(
-        authUrl,
-        webBrowserRedirectUri,  // Use the same redirect URI for WebBrowser
-        {
-          showInRecents: true,
-          createTask: false
-        }
+        authUrl.toString(),
+        'ereft://oauth'
       );
-
+      
       console.log('🔐 GoogleSignIn: WebBrowser result:', result);
 
       if (result.type === 'success') {
@@ -227,7 +175,6 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
         
         // The backend now redirects to ereft://oauth deep link
         // The deep link listener will handle the authorization code
-        // We just need to wait for the deep link to be processed
         console.log('🔐 GoogleSignIn: Waiting for deep link with authentication data...');
         
         // Check if the result URL contains the deep link
@@ -241,12 +188,11 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
           console.log('🔐 GoogleSignIn: Actual:', result.url);
           
           // FALLBACK: If no deep link in result URL, try to extract data from the HTML response
-          // This handles cases where the backend returns HTML instead of redirecting
           try {
             console.log('🔐 GoogleSignIn: Attempting to extract auth data from HTML response...');
             
             // Make a request to the backend to get the current OAuth status
-            const response = await fetch('https://ereft.onrender.com/oauth');
+            const response = await fetch('https://ereft.onrender.com/oauth/');
             const htmlText = await response.text();
             
             // Look for authentication data in the HTML
@@ -256,7 +202,7 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
             
             if (tokenMatch && userIdMatch && emailMatch) {
               const token = tokenMatch[1];
-              const userId = userIdMatch[1];
+              const userId = tokenMatch[1];
               const email = emailMatch[1];
               
               console.log('🔐 GoogleSignIn: Extracted auth data from HTML:', { token: token ? 'YES' : 'NO', userId, email });
@@ -272,9 +218,6 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
             onError?.('Failed to complete OAuth flow - please try again');
           }
         }
-        
-        // The deep link listener will automatically call completeOAuthFlow
-        // when it receives the ereft://oauth deep link
         
       } else if (result.type === 'cancel') {
         console.log('🔐 GoogleSignIn: User cancelled OAuth flow');
