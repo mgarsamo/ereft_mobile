@@ -14,12 +14,12 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useAuth } from '../context/AuthContext';
-import GoogleLoginButton from '../components/GoogleLoginButton';
+import GoogleSignIn from '../components/GoogleSignIn';
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '../config/api';
 
 const LoginScreen = () => {
   const navigation = useNavigation();
-  const { login, isLoading, sendPhoneVerification, checkAuthStatus, handleGoogleOAuthSuccess } = useAuth();
+  const { login, isLoading, sendPhoneVerification, checkAuthStatus } = useAuth();
   
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -145,20 +145,26 @@ const LoginScreen = () => {
   };
 
   // Handle Google OAuth success
-  const handleGoogleSuccess = async (oauthData) => {
+  const handleGoogleSuccess = async (result) => {
     try {
-      console.log('🔐 LoginScreen: Google OAuth success:', oauthData);
+      console.log('🔐 LoginScreen: Google OAuth success:', result);
       
-      // Use the AuthContext to handle the OAuth success
-      await handleGoogleOAuthSuccess(oauthData);
-      
-      console.log('🔐 LoginScreen: Google OAuth completed, navigating to Home');
-      
-      // Navigate to Home screen
-      navigation.navigate('Home');
+      if (result.success) {
+        // The GoogleSignIn component already stored the token in AsyncStorage
+        // We need to trigger a re-check of authentication status in AuthContext
+        // by calling checkAuthStatus or refreshing the auth state
+        
+        console.log('🔐 LoginScreen: Google OAuth completed, refreshing auth state...');
+        
+        // Force AuthContext to re-check authentication status
+        // This will detect the stored token and user data
+        await checkAuthStatus();
+        
+        Alert.alert('Success', 'Successfully signed in with Google!');
+      }
     } catch (error) {
       console.error('🔐 LoginScreen: Error handling Google OAuth success:', error);
-      Alert.alert('Login Error', 'An error occurred during Google sign-in. Please try again.');
+      Alert.alert('Error', 'Failed to complete Google sign-in');
     }
   };
 
@@ -416,7 +422,7 @@ const LoginScreen = () => {
             </View>
 
             {/* Social Login Buttons */}
-            <GoogleLoginButton 
+            <GoogleSignIn 
               style={styles.socialButton} 
               textStyle={styles.socialButtonText}
               onSuccess={handleGoogleSuccess}
