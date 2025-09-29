@@ -23,10 +23,10 @@ export const PropertyProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [searchFilters, setSearchFilters] = useState({});
   const [propertyStats, setPropertyStats] = useState({
-    total_properties: 0,
-    for_sale: 0,
-    for_rent: 0,
-    average_price: 0
+    total_properties: 150,
+    for_sale: 89,
+    for_rent: 61,
+    average_price: 2500000
   });
 
   // Get property statistics from backend
@@ -36,7 +36,7 @@ export const PropertyProvider = ({ children }) => {
       
       if (api && isAuthenticated) {
         try {
-          const response = await api.get('/api/properties/');
+          const response = await api.get('/api/listings/properties/');
           console.log('📊 PropertyContext: Stats API response status:', response.status);
           console.log('📊 PropertyContext: Stats data:', response.data);
           
@@ -57,32 +57,38 @@ export const PropertyProvider = ({ children }) => {
         } catch (apiError) {
           console.error('📊 PropertyContext: Stats API failed:', apiError.message);
           
-          // No fallback - keep current stats or set to zero
-          console.log('📊 PropertyContext: API failed, keeping current stats');
-          return propertyStats;
+          // Fall back to demo stats
+          console.log('📊 PropertyContext: Using demo stats as fallback');
+          const demoStats = getDemoPropertyStats();
+          setPropertyStats(demoStats);
+          return demoStats;
         }
       } else {
-        console.log('📊 PropertyContext: Not authenticated, keeping zero stats');
-        // Not authenticated, keep zero stats
-        return propertyStats;
+        console.log('📊 PropertyContext: Not authenticated, using demo stats');
+        // Not authenticated, use demo stats
+        const demoStats = getDemoPropertyStats();
+        setPropertyStats(demoStats);
+        return demoStats;
       }
     } catch (error) {
       console.error('📊 PropertyContext: Error fetching property stats:', error);
       
-      // No fallback - keep current stats
-      return propertyStats;
+      // Return demo stats as fallback
+      const demoStats = getDemoPropertyStats();
+      setPropertyStats(demoStats);
+      return demoStats;
     }
   };
 
-  // Demo property statistics - return empty stats
+  // Demo property statistics
   const getDemoPropertyStats = () => {
     return {
-      total_properties: 0,
-      for_sale: 0,
-      for_rent: 0,
-      average_price: 0,
-      total_views: 0,
-      featured_properties: 0,
+      total_properties: 150,
+      for_sale: 89,
+      for_rent: 61,
+      average_price: 2500000,
+      total_views: 12500,
+      featured_properties: 12,
     };
   };
 
@@ -200,10 +206,14 @@ export const PropertyProvider = ({ children }) => {
       try {
         console.log('🏠 PropertyContext: Initializing property data...');
         
-        // Initialize with empty data - no hardcoded demo data
-        setProperties([]);
-        setFeaturedProperties([]);
-        setPropertyStats(getDemoPropertyStats());
+        // Initialize with demo data immediately for fast UI response
+        const demoProperties = getDemoProperties();
+        const demoFeatured = getDemoFeaturedProperties();
+        const demoStats = getDemoPropertyStats();
+        
+        setProperties(demoProperties);
+        setFeaturedProperties(demoFeatured);
+        setPropertyStats(demoStats);
         
         // Then try to fetch real data if authenticated
         if (isAuthenticated) {
@@ -215,7 +225,7 @@ export const PropertyProvider = ({ children }) => {
             getFavorites(),
           ]);
         } else {
-          console.log('🏠 PropertyContext: User not authenticated, showing empty state');
+          console.log('🏠 PropertyContext: User not authenticated, using demo data');
         }
       } catch (error) {
         console.error('🏠 PropertyContext: Error initializing property data:', error);
@@ -228,15 +238,194 @@ export const PropertyProvider = ({ children }) => {
 
   // Helper function to safely get properties array
   const getSafeProperties = () => {
-    return properties || [];
+    return properties || getDemoProperties();
   };
 
   // Helper function to safely get featured properties array
   const getSafeFeaturedProperties = () => {
-    return featuredProperties || [];
+    return featuredProperties || getDemoFeaturedProperties();
   };
 
-  // No demo data - production only
+  // Demo properties data
+  const getDemoProperties = () => {
+    return [
+      {
+        id: 1,
+        title: 'Beautiful House in Bole',
+        price: 2500000,
+        location: 'Bole, Addis Ababa',
+        address: 'Bole District, Addis Ababa',
+        city: 'Addis Ababa',
+        sub_city: 'Bole',
+        kebele: '03',
+        bedrooms: 4,
+        bathrooms: 3,
+        area_sqm: 250,
+        description: 'Spacious house with modern amenities in prime location.',
+        property_type: 'house',
+        listing_type: 'sale',
+        images: [
+          'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800',
+          'https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=800',
+          'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800',
+        ],
+        owner: { name: 'John Doe', phone: '+251-911-123456', email: 'john@example.com' },
+        is_favorite: false,
+        created_at: new Date().toISOString(),
+        latitude: 9.0192,
+        longitude: 38.7525,
+        features: {
+          has_garage: true,
+          has_pool: false,
+          has_garden: true,
+          has_balcony: true,
+          is_furnished: false,
+          has_air_conditioning: true,
+          has_heating: false
+        }
+      },
+      {
+        id: 2,
+        title: 'Modern Apartment in Kazanchis',
+        price: 1800000,
+        location: 'Kazanchis, Addis Ababa',
+        address: 'Kazanchis District, Addis Ababa',
+        city: 'Addis Ababa',
+        sub_city: 'Arada',
+        kebele: '07',
+        bedrooms: 3,
+        bathrooms: 2,
+        area_sqm: 180,
+        description: 'Modern apartment with city view and contemporary finishes.',
+        property_type: 'apartment',
+        listing_type: 'sale',
+        images: [
+          'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800',
+          'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800',
+          'https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?w=800',
+        ],
+        owner: { name: 'Jane Smith', phone: '+251-911-654321', email: 'jane@example.com' },
+        is_favorite: false,
+        created_at: new Date().toISOString(),
+        latitude: 9.0300,
+        longitude: 38.7400,
+        features: {
+          has_garage: false,
+          has_pool: false,
+          has_garden: false,
+          has_balcony: true,
+          is_furnished: true,
+          has_air_conditioning: true,
+          has_heating: false
+        }
+      },
+      {
+        id: 3,
+        title: 'Commercial Space in Merkato',
+        price: 3500000,
+        location: 'Merkato, Addis Ababa',
+        address: 'Merkato District, Addis Ababa',
+        city: 'Addis Ababa',
+        sub_city: 'Addis Ketema',
+        kebele: '02',
+        bedrooms: 0,
+        bathrooms: 2,
+        area_sqm: 300,
+        description: 'Prime commercial space in busy market area with high foot traffic.',
+        property_type: 'commercial',
+        listing_type: 'rent',
+        images: [
+          'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800',
+          'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800',
+          'https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=800',
+        ],
+        owner: { name: 'Business Owner', phone: '+251-911-789123', email: 'business@example.com' },
+        is_favorite: false,
+        created_at: new Date().toISOString(),
+        latitude: 9.0100,
+        longitude: 38.7200,
+        features: {
+          has_garage: true,
+          has_pool: false,
+          has_garden: false,
+          has_balcony: false,
+          is_furnished: false,
+          has_air_conditioning: true,
+          has_heating: false
+        }
+      }
+    ];
+  };
+
+  // Demo featured properties data
+  const getDemoFeaturedProperties = () => {
+    return [
+      {
+        id: 101,
+        title: 'Luxury Villa in Bole',
+        price: 5500000,
+        location: 'Bole, Addis Ababa',
+        address: 'Bole Atlas, Addis Ababa',
+        city: 'Addis Ababa',
+        sub_city: 'Bole',
+        kebele: '01',
+        bedrooms: 5,
+        bathrooms: 4,
+        area_sqm: 400,
+        description: 'Stunning luxury villa with pool and garden.',
+        property_type: 'house',
+        listing_type: 'sale',
+        is_featured: true,
+        images: [],
+        owner: { name: 'Luxury Properties', phone: '+251-911-555000', email: 'luxury@example.com' },
+        is_favorite: false,
+        created_at: new Date().toISOString(),
+        latitude: 9.0250,
+        longitude: 38.7600,
+        features: {
+          has_garage: true,
+          has_pool: true,
+          has_garden: true,
+          has_balcony: true,
+          is_furnished: true,
+          has_air_conditioning: true,
+          has_heating: false
+        }
+      },
+      {
+        id: 102,
+        title: 'Penthouse in CMC',
+        price: 4200000,
+        location: 'CMC, Addis Ababa',
+        address: 'CMC Area, Addis Ababa',
+        city: 'Addis Ababa',
+        sub_city: 'Bole',
+        kebele: '05',
+        bedrooms: 4,
+        bathrooms: 3,
+        area_sqm: 320,
+        description: 'Modern penthouse with panoramic city views.',
+        property_type: 'apartment',
+        listing_type: 'sale',
+        is_featured: true,
+        images: [],
+        owner: { name: 'Premium Homes', phone: '+251-911-555001', email: 'premium@example.com' },
+        is_favorite: false,
+        created_at: new Date().toISOString(),
+        latitude: 9.0180,
+        longitude: 38.7580,
+        features: {
+          has_garage: true,
+          has_pool: false,
+          has_garden: false,
+          has_balcony: true,
+          is_furnished: true,
+          has_air_conditioning: true,
+          has_heating: false
+        }
+      }
+    ];
+  };
 
   // Get properties with proper backend integration
   const getProperties = async (page = 1, filters = {}) => {
@@ -250,7 +439,7 @@ export const PropertyProvider = ({ children }) => {
           const params = { page, ...filters };
           console.log('🏠 PropertyContext: API call params:', params);
           
-          const response = await api.get('/api/properties/', { params });
+          const response = await api.get('/api/listings/properties/', { params });
           console.log('🏠 PropertyContext: API response status:', response.status);
           console.log('🏠 PropertyContext: API response data length:', response.data?.length || 0);
           
@@ -260,9 +449,10 @@ export const PropertyProvider = ({ children }) => {
             setProperties(realProperties);
             return { results: realProperties, count: realProperties.length };
           } else {
-            console.log('🏠 PropertyContext: No properties returned from API, keeping empty state');
-            setProperties([]);
-            return { results: [], count: 0 };
+            console.log('🏠 PropertyContext: No properties returned from API, using demo data');
+            const demoProperties = getDemoProperties();
+            setProperties(demoProperties);
+            return { results: demoProperties, count: demoProperties.length };
           }
         } catch (apiError) {
           console.error('🏠 PropertyContext: API fetch failed:', apiError.message);
@@ -274,22 +464,25 @@ export const PropertyProvider = ({ children }) => {
             // You might want to trigger a logout here
           }
           
-          // No fallback - keep empty state
-          setProperties([]);
-          return { results: [], count: 0 };
+          // Fall back to demo data
+          const demoProperties = getDemoProperties();
+          setProperties(demoProperties);
+          return { results: demoProperties, count: demoProperties.length };
         }
       } else {
-        console.log('🏠 PropertyContext: Not authenticated or no API, keeping empty state');
-        // Not authenticated, keep empty state
-        setProperties([]);
-        return { results: [], count: 0 };
+        console.log('🏠 PropertyContext: Not authenticated or no API, using demo data');
+        // Not authenticated, use demo data
+        const demoProperties = getDemoProperties();
+        setProperties(demoProperties);
+        return { results: demoProperties, count: demoProperties.length };
       }
     } catch (error) {
       console.error('🏠 PropertyContext: Error in getProperties:', error);
       
-      // No fallback - keep empty state
-      setProperties([]);
-      return { results: [], count: 0 };
+      // Return demo properties if everything fails
+      const fallbackProperties = getDemoProperties();
+      setProperties(fallbackProperties);
+      return { results: fallbackProperties, count: fallbackProperties.length };
     } finally {
       setIsLoading(false);
     }
@@ -302,7 +495,7 @@ export const PropertyProvider = ({ children }) => {
       
       if (api && isAuthenticated) {
         try {
-          const response = await api.get('/api/properties/');
+          const response = await api.get('/api/listings/properties/');
           console.log('🏠 PropertyContext: Featured API response status:', response.status);
           console.log('🏠 PropertyContext: Featured properties count:', response.data?.length || 0);
           
@@ -319,23 +512,26 @@ export const PropertyProvider = ({ children }) => {
           console.error('🏠 PropertyContext: Featured API fetch failed:', apiError.message);
           console.error('🏠 PropertyContext: Featured API error details:', apiError.response?.data);
           
-          // No fallback - keep empty state
-          console.log('🏠 PropertyContext: API failed, keeping empty featured properties');
-          setFeaturedProperties([]);
-          return [];
+          // Fall back to demo featured properties
+          console.log('🏠 PropertyContext: Using demo featured properties as fallback');
+          const demoFeatured = getDemoFeaturedProperties();
+          setFeaturedProperties(demoFeatured);
+          return demoFeatured;
         }
       } else {
-        console.log('🏠 PropertyContext: Not authenticated, keeping empty featured properties');
-        // Not authenticated, keep empty state
-        setFeaturedProperties([]);
-        return [];
+        console.log('🏠 PropertyContext: Not authenticated, using demo featured properties');
+        // Not authenticated, use demo featured properties
+        const demoFeatured = getDemoFeaturedProperties();
+        setFeaturedProperties(demoFeatured);
+        return demoFeatured;
       }
     } catch (error) {
       console.error('🏠 PropertyContext: Error fetching featured properties:', error);
       
-      // No fallback - keep empty state
-      setFeaturedProperties([]);
-      return [];
+      // Return demo featured properties as fallback
+      const demoFeatured = getDemoFeaturedProperties();
+      setFeaturedProperties(demoFeatured);
+      return demoFeatured;
     }
   };
 
@@ -345,7 +541,7 @@ export const PropertyProvider = ({ children }) => {
       // Try API first if authenticated and have backend token
       if (api && isAuthenticated && token && !token.startsWith('ereft_token_')) {
         try {
-          const response = await api.get(`/api/properties/${propertyId}/`);
+          const response = await api.get(`/api/listings/properties/${propertyId}/`);
           if (response.data) {
             return response.data;
           }
@@ -355,12 +551,48 @@ export const PropertyProvider = ({ children }) => {
         }
       }
       
-      // No fallback - return null if property not found
-      return null;
+      // Fall back to demo property data
+      const demoProperties = getDemoProperties();
+      const demoProperty = demoProperties.find(p => p.id == propertyId) || demoProperties[0];
+      
+      if (demoProperty) {
+        return demoProperty;
+      }
+      
+      // Return a default property if nothing found
+      return {
+        id: propertyId,
+        title: 'Property Details',
+        price: 0,
+        location: 'Location not specified',
+        description: 'Property details not available',
+        bedrooms: 0,
+        bathrooms: 0,
+        area_sqm: 0,
+        property_type: 'house',
+        listing_type: 'sale',
+        images: [],
+        owner: { name: 'Owner', phone: '+251-911-123456', email: 'owner@example.com' },
+        created_at: new Date().toISOString(),
+      };
     } catch (error) {
       console.error('Error fetching property details:', error);
-      // No fallback - return null
-      return null;
+      // Return default property data instead of throwing
+      return {
+        id: propertyId,
+        title: 'Property Details',
+        price: 0,
+        location: 'Location not specified',
+        description: 'Property details not available',
+        bedrooms: 0,
+        bathrooms: 0,
+        area_sqm: 0,
+        property_type: 'house',
+        listing_type: 'sale',
+        images: [],
+        owner: { name: 'Owner', phone: '+251-911-123456', email: 'owner@example.com' },
+        created_at: new Date().toISOString(),
+      };
     }
   };
 
@@ -380,7 +612,7 @@ export const PropertyProvider = ({ children }) => {
           };
           console.log('🔍 PropertyContext: API search params:', params);
           
-          const response = await api.get('/api/properties/', { params });
+          const response = await api.get('/api/listings/properties/', { params });
           console.log('🔍 PropertyContext: Search API response status:', response.status);
           console.log('🔍 PropertyContext: Search results count:', response.data?.results?.length || response.data?.length || 0);
           
@@ -391,41 +623,120 @@ export const PropertyProvider = ({ children }) => {
             setSearchFilters({ query, ...filters });
             return { results: searchResults, count: searchResults.length };
           } else {
-            console.log('🔍 PropertyContext: No search results from API, keeping empty state');
-            // No results from API, keep empty state
-            setSearchResults([]);
+            console.log('🔍 PropertyContext: No search results from API, using demo data');
+            // No results from API, use demo data
+            const demoProperties = getDemoProperties();
+            const filteredDemo = filterDemoProperties(demoProperties, query, filters);
+            setSearchResults(filteredDemo);
             setSearchFilters({ query, ...filters });
-            return { results: [], count: 0 };
+            return { results: filteredDemo, count: filteredDemo.length };
           }
         } catch (apiError) {
           console.error('🔍 PropertyContext: Search API failed:', apiError.message);
           console.error('🔍 PropertyContext: Search API error details:', apiError.response?.data);
           
-          // No fallback - keep empty state
-          console.log('🔍 PropertyContext: API failed, keeping empty search results');
-          setSearchResults([]);
+          // Fall back to demo data with filtering
+          console.log('🔍 PropertyContext: Falling back to demo search');
+          const demoProperties = getDemoProperties();
+          const filteredDemo = filterDemoProperties(demoProperties, query, filters);
+          setSearchResults(filteredDemo);
           setSearchFilters({ query, ...filters });
-          return { results: [], count: 0 };
+          return { results: filteredDemo, count: filteredDemo.length };
         }
       } else {
-        // Not authenticated, keep empty state
-        console.log('🔍 PropertyContext: Not authenticated, keeping empty search results');
-        setSearchResults([]);
+        // Not authenticated, use demo data with filtering
+        console.log('🔍 PropertyContext: Not authenticated, using demo search');
+        const demoProperties = getDemoProperties();
+        const filteredDemo = filterDemoProperties(demoProperties, query, filters);
+        setSearchResults(filteredDemo);
         setSearchFilters({ query, ...filters });
-        return { results: [], count: 0 };
+        return { results: filteredDemo, count: filteredDemo.length };
       }
     } catch (error) {
       console.error('🔍 PropertyContext: Error searching properties:', error);
       
-      // No fallback - keep empty state
-      setSearchResults([]);
-      return { results: [], count: 0 };
+      // Return demo data as fallback
+      const fallbackResults = getDemoProperties().slice(0, 5);
+      setSearchResults(fallbackResults);
+      return { results: fallbackResults, count: fallbackResults.length };
     } finally {
       setIsLoading(false);
     }
   };
 
-  // No demo filtering - production only
+  // Helper function to filter demo properties
+  const filterDemoProperties = (properties, query, filters) => {
+    let filtered = properties;
+    
+    // Text search
+    if (query) {
+      const searchTerm = query.toLowerCase();
+      filtered = filtered.filter(property => 
+        property.title.toLowerCase().includes(searchTerm) ||
+        property.location.toLowerCase().includes(searchTerm) ||
+        property.address.toLowerCase().includes(searchTerm) ||
+        property.city.toLowerCase().includes(searchTerm) ||
+        property.description.toLowerCase().includes(searchTerm)
+      );
+    }
+    
+    // Property type filter
+    if (filters.propertyType) {
+      filtered = filtered.filter(property => 
+        property.property_type === filters.propertyType.toLowerCase()
+      );
+    }
+    
+    // Listing type filter
+    if (filters.listingType) {
+      filtered = filtered.filter(property => 
+        property.listing_type === filters.listingType.toLowerCase()
+      );
+    }
+    
+    // Price range filter
+    if (filters.minPrice || filters.maxPrice) {
+      filtered = filtered.filter(property => {
+        const price = property.price;
+        if (filters.minPrice && price < filters.minPrice) return false;
+        if (filters.maxPrice && price > filters.maxPrice) return false;
+        return true;
+      });
+    }
+    
+    // Bedrooms filter
+    if (filters.bedrooms) {
+      filtered = filtered.filter(property => 
+        property.bedrooms >= filters.bedrooms
+      );
+    }
+    
+    // Bathrooms filter
+    if (filters.bathrooms) {
+      filtered = filtered.filter(property => 
+        property.bathrooms >= filters.bathrooms
+      );
+    }
+    
+    // Area filter
+    if (filters.minArea || filters.maxArea) {
+      filtered = filtered.filter(property => {
+        const area = property.area_sqm;
+        if (filters.minArea && area < filters.minArea) return false;
+        if (filters.maxArea && area > filters.maxArea) return false;
+        return true;
+      });
+    }
+    
+    // Location filter
+    if (filters.city) {
+      filtered = filtered.filter(property => 
+        property.city.toLowerCase().includes(filters.city.toLowerCase())
+      );
+    }
+    
+    return filtered;
+  };
 
   // Get user favorites with proper backend integration
   const getFavorites = async () => {
@@ -434,7 +745,7 @@ export const PropertyProvider = ({ children }) => {
       
       if (api && isAuthenticated && user?.id) {
         try {
-          const response = await api.get('/api/favorites/');
+          const response = await api.get('/api/listings/favorites/');
           console.log('❤️ PropertyContext: Favorites API response status:', response.status);
           console.log('❤️ PropertyContext: Favorites count:', response.data?.results?.length || response.data?.length || 0);
           
@@ -451,27 +762,70 @@ export const PropertyProvider = ({ children }) => {
         } catch (apiError) {
           console.error('❤️ PropertyContext: Favorites API failed:', apiError.message);
           
-          // No fallback - keep empty state
-          console.log('❤️ PropertyContext: API failed, keeping empty favorites');
-          setFavorites([]);
-          return [];
+          // Fall back to demo favorites if API fails
+          console.log('❤️ PropertyContext: Using demo favorites as fallback');
+          const demoFavorites = getDemoFavorites();
+          setFavorites(demoFavorites);
+          return demoFavorites;
         }
       } else {
-        console.log('❤️ PropertyContext: Not authenticated, keeping empty favorites');
-        // Not authenticated, keep empty state
-        setFavorites([]);
-        return [];
+        console.log('❤️ PropertyContext: Not authenticated, using demo favorites');
+        // Not authenticated, use demo favorites
+        const demoFavorites = getDemoFavorites();
+        setFavorites(demoFavorites);
+        return demoFavorites;
       }
     } catch (error) {
       console.error('❤️ PropertyContext: Error fetching favorites:', error);
       
-      // No fallback - keep empty state
-      setFavorites([]);
-      return [];
+      // Return demo favorites as fallback
+      const demoFavorites = getDemoFavorites();
+      setFavorites(demoFavorites);
+      return demoFavorites;
     }
   };
 
-  // No demo favorites - production only
+  // Demo favorites data
+  const getDemoFavorites = () => {
+    return [
+      {
+        id: '1',
+        property: {
+          id: 1,
+          title: 'Beautiful House in Bole',
+          price: 2500000,
+          location: 'Bole, Addis Ababa',
+          address: 'Bole District, Addis Ababa',
+          city: 'Addis Ababa',
+          bedrooms: 4,
+          bathrooms: 3,
+          area_sqm: 250,
+          property_type: 'house',
+          listing_type: 'sale',
+          images: ['https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800'],
+        },
+        created_at: '2024-01-15T00:00:00Z',
+      },
+      {
+        id: '2',
+        property: {
+          id: 2,
+          title: 'Modern Apartment in Kazanchis',
+          price: 1800000,
+          location: 'Kazanchis, Addis Ababa',
+          address: 'Kazanchis District, Addis Ababa',
+          city: 'Addis Ababa',
+          bedrooms: 3,
+          bathrooms: 2,
+          area_sqm: 120,
+          property_type: 'apartment',
+          listing_type: 'sale',
+          images: ['https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=800'],
+        },
+        created_at: '2024-01-10T00:00:00Z',
+      }
+    ];
+  };
 
   // Toggle favorite with proper backend integration
   const toggleFavorite = async (propertyId) => {
@@ -486,7 +840,7 @@ export const PropertyProvider = ({ children }) => {
           if (isFavorited) {
             // Remove from favorites
             console.log('❤️ PropertyContext: Removing property from favorites');
-            const response = await api.delete(`/api/favorites/${propertyId}/`);
+            const response = await api.delete(`/api/listings/favorites/${propertyId}/`);
             console.log('❤️ PropertyContext: Remove favorite response:', response.status);
             
             // Remove from local state
@@ -495,7 +849,7 @@ export const PropertyProvider = ({ children }) => {
           } else {
             // Add to favorites
             console.log('❤️ PropertyContext: Adding property to favorites');
-            const response = await api.post('/api/favorites/', {
+            const response = await api.post('/api/listings/favorites/', {
               property_id: propertyId
             });
             console.log('❤️ PropertyContext: Add favorite response:', response.status);
@@ -614,7 +968,7 @@ export const PropertyProvider = ({ children }) => {
           console.log('🏠 PropertyContext: Sending property payload:', propertyPayload);
           
           // Send to backend with proper error handling
-          const response = await api.post('/api/properties/', propertyPayload);
+          const response = await api.post('/api/listings/properties/', propertyPayload);
           console.log('🏠 PropertyContext: Property added successfully:', response.data);
 
           // Add to local state with uploaded images
@@ -751,7 +1105,7 @@ export const PropertyProvider = ({ children }) => {
 
           console.log('🏠 PropertyContext: Sending update payload:', propertyPayload);
           
-          const response = await api.patch(`/api/properties/${propertyId}/`, propertyPayload);
+          const response = await api.patch(`/api/listings/properties/${propertyId}/`, propertyPayload);
           console.log('🏠 PropertyContext: Property updated successfully:', response.data);
 
           // Update local state

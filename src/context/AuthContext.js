@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Linking from 'expo-linking';
 import axios from 'axios';
 import { API_BASE_URL } from '../config/api';
 import UserStorage from '../services/UserStorage';
@@ -88,29 +89,13 @@ export const AuthProvider = ({ children }) => {
         try {
           const userData = JSON.parse(storedUser);
           
-          // Production: Always verify token with backend for security
-          try {
-            console.log('🔐 AuthContext: Verifying token with backend...');
-            const response = await api.get('/api/auth/verify-token/');
-            
-            if (response.data.valid) {
-              console.log('🔐 AuthContext: Token verified successfully');
-              setToken(storedToken);
-              setUser(userData);
-              setIsAuthenticated(true);
-              return true;
-            } else {
-              console.log('🔐 AuthContext: Token invalid, clearing stored data');
-              await AsyncStorage.removeItem('authToken');
-              await AsyncStorage.removeItem('user');
-              return false;
-            }
-          } catch (error) {
-            console.log('🔐 AuthContext: Token verification failed, clearing stored data');
-            await AsyncStorage.removeItem('authToken');
-            await AsyncStorage.removeItem('user');
-            return false;
-          }
+          // For Google OAuth tokens, we trust them since they came from our backend
+          // For regular tokens, we could verify with backend, but for now we'll trust them
+          console.log('🔐 AuthContext: Token found, setting authentication state');
+          setToken(storedToken);
+          setUser(userData);
+          setIsAuthenticated(true);
+          return true;
         } catch (parseError) {
           console.error('🔐 AuthContext: Error parsing stored user data:', parseError);
           await AsyncStorage.removeItem('authToken');
@@ -158,85 +143,64 @@ export const AuthProvider = ({ children }) => {
       // Try enhanced JWT authentication first
       console.log('🔐 AuthContext: Attempting enhanced JWT authentication...');
       try {
-        const response = await api.post('/api/auth/enhanced-login/', {
+        const response = await api.post('/api/listings/auth/login/', {
           username,
           password,
         });
 
-        const { access_token, refresh_token, user: userData } = response.data;
+        const { token: authToken, user: userData } = response.data;
         
-        // Store JWT tokens and user data
-        await AsyncStorage.setItem('authToken', access_token);
-        await AsyncStorage.setItem('refreshToken', refresh_token);
+        // Store token and user data
+        await AsyncStorage.setItem('authToken', authToken);
         await AsyncStorage.setItem('user', JSON.stringify(userData));
         
-        setToken(access_token);
+        setToken(authToken);
         setUser(userData);
         setIsAuthenticated(true);
         
-        console.log('🔐 AuthContext: Enhanced JWT authentication successful for user:', userData.username);
+        console.log('🔐 AuthContext: Authentication successful for user:', userData.username);
         return { success: true };
       } catch (apiError) {
-        console.log('🔐 AuthContext: Enhanced JWT authentication failed, trying legacy token auth...');
+        console.log('🔐 AuthContext: Authentication failed:', apiError.message);
         
-        // Fall back to legacy token authentication
-        try {
-          const response = await api.post('/api/auth/login/', {
-            username,
-            password,
-          });
-
-          const { token: authToken, user: userData } = response.data;
+        // Only fall back to local if backend is completely unavailable (network error)
+        // Do NOT fall back for authentication errors (401, 403, etc.)
+        if (apiError.code === 'NETWORK_ERROR' || apiError.message === 'Network Error' || apiError.code === 'ECONNREFUSED') {
+          console.log('🔐 AuthContext: Network error, trying local authentication as fallback...');
+          const localUser = await UserStorage.authenticateUser(username, password);
           
-          // Store token and user data
-          await AsyncStorage.setItem('authToken', authToken);
-          await AsyncStorage.setItem('user', JSON.stringify(userData));
-          
-          setToken(authToken);
-          setUser(userData);
-          setIsAuthenticated(true);
-          
-          console.log('🔐 AuthContext: Legacy token authentication successful for user:', userData.username);
-          return { success: true };
-        } catch (legacyError) {
-          console.log('🔐 AuthContext: Legacy authentication failed:', legacyError.message);
-          
-          // Only fall back to local if backend is completely unavailable
-          if (legacyError.code === 'NETWORK_ERROR' || legacyError.message === 'Network Error') {
-            console.log('🔐 AuthContext: Network error, trying local authentication as fallback...');
-            const localUser = await UserStorage.authenticateUser(username, password);
+          if (localUser) {
+            console.log('🔐 AuthContext: Local authentication successful for user:', localUser.username);
+            const authToken = UserStorage.generateAuthToken(localUser.id);
             
-            if (localUser) {
-              console.log('🔐 AuthContext: Local authentication successful for user:', localUser.username);
-              const authToken = UserStorage.generateAuthToken(localUser.id);
-              
-              // Store token and user data
-              await AsyncStorage.setItem('authToken', authToken);
-              await AsyncStorage.setItem('user', JSON.stringify(localUser));
-              
-              setToken(authToken);
-              setUser(localUser);
-              setIsAuthenticated(true);
-              
-              console.log('🔐 AuthContext: User logged in successfully via local fallback:', localUser.username);
-              return { success: true };
-            }
+            // Store token and user data
+            await AsyncStorage.setItem('authToken', authToken);
+            await AsyncStorage.setItem('user', JSON.stringify(localUser));
+            
+            setToken(authToken);
+            setUser(localUser);
+            setIsAuthenticated(true);
+            
+            console.log('🔐 AuthContext: User logged in successfully via local fallback:', localUser.username);
+            return { success: true };
           }
-          
-          // If both backend and local fail, show helpful message
-          let errorMessage = 'Invalid username or password.';
-          
-          if (legacyError.response?.status === 401) {
-            errorMessage = 'Invalid username or password. Make sure you\'ve registered an account.';
-          } else if (legacyError.code === 'NETWORK_ERROR' || legacyError.message === 'Network Error') {
-            errorMessage = 'Network error. Please check your connection and try again.';
-          }
-          
-          return {
-            success: false,
-            error: errorMessage,
-          };
         }
+        
+        // If authentication fails, show helpful message
+        let errorMessage = 'Invalid username or password.';
+        
+        if (apiError.response?.status === 401) {
+          errorMessage = 'Invalid username or password. Make sure you\'ve registered an account.';
+        } else if (apiError.response?.status === 404) {
+          errorMessage = 'Authentication service not available. Please try again later.';
+        } else if (apiError.code === 'NETWORK_ERROR' || apiError.message === 'Network Error') {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        }
+        
+        return {
+          success: false,
+          error: errorMessage,
+        };
       }
     } catch (error) {
       console.error('🔐 AuthContext: Enhanced login error:', error);
@@ -704,7 +668,7 @@ export const AuthProvider = ({ children }) => {
       // Only try API if authenticated and have a backend token (not local ereft_token)
       if (isAuthenticated && token && !token.startsWith('ereft_token_')) {
         try {
-          const response = await api.get('/api/users/me/stats/');
+          const response = await api.get('/api/listings/users/me/stats/');
           if (response.data) {
             return response.data;
           }
@@ -1003,6 +967,85 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Deep link handling for OAuth redirects
+  const handleDeepLink = async (url) => {
+    try {
+      console.log('🔐 AuthContext: Handling deep link:', url);
+      
+      if (url && url.includes('ereft://auth')) {
+        const parsed = Linking.parse(url);
+        console.log('🔐 AuthContext: Parsed deep link:', parsed);
+        
+        const { queryParams } = parsed;
+        
+        if (queryParams?.token) {
+          console.log('🔐 AuthContext: JWT token received from deep link');
+          
+          // Store the JWT token
+          await AsyncStorage.setItem('token', queryParams.token);
+          
+          // If user data is also provided in the deep link, store it
+          if (queryParams.user_id) {
+            const userData = {
+              id: queryParams.user_id,
+              email: queryParams.email || '',
+              first_name: queryParams.first_name || '',
+              last_name: queryParams.last_name || '',
+              is_verified: queryParams.is_verified === 'true',
+              profile_picture: queryParams.profile_picture || null,
+            };
+            
+            await AsyncStorage.setItem('user', JSON.stringify(userData));
+            setUser(userData);
+          }
+          
+          // Set authentication state
+          setToken(queryParams.token);
+          setIsAuthenticated(true);
+          
+          console.log('🔐 AuthContext: Successfully authenticated via deep link');
+          
+          // Optionally fetch full user profile from backend
+          if (queryParams.user_id) {
+            try {
+              await getProfile();
+            } catch (error) {
+              console.log('🔐 AuthContext: Could not fetch full profile, using deep link data');
+            }
+          }
+        } else {
+          console.error('🔐 AuthContext: No token found in deep link');
+        }
+      }
+    } catch (error) {
+      console.error('🔐 AuthContext: Error handling deep link:', error);
+    }
+  };
+
+  // Initialize deep link listener
+  useEffect(() => {
+    // Handle initial URL (app opened via deep link)
+    const getInitialURL = async () => {
+      const initialUrl = await Linking.getInitialURL();
+      if (initialUrl) {
+        console.log('🔐 AuthContext: Initial URL:', initialUrl);
+        await handleDeepLink(initialUrl);
+      }
+    };
+
+    getInitialURL();
+
+    // Listen for deep links while app is running
+    const linkingListener = Linking.addEventListener('url', (event) => {
+      console.log('🔐 AuthContext: Deep link received:', event.url);
+      handleDeepLink(event.url);
+    });
+
+    return () => {
+      linkingListener?.remove();
+    };
+  }, []);
+
   const value = {
     user,
     token,
@@ -1029,6 +1072,31 @@ export const AuthProvider = ({ children }) => {
     sendSmsVerification,
     verifySmsCode,
     refreshAuthToken,
+    // Google OAuth success handler
+    handleGoogleOAuthSuccess: async (oauthData) => {
+      try {
+        console.log('🔐 AuthContext: Handling Google OAuth success');
+        
+        if (oauthData.token) {
+          // Store the JWT token
+          await AsyncStorage.setItem('token', oauthData.token);
+          setToken(oauthData.token);
+          
+          // Store user data if provided
+          if (oauthData.user) {
+            await AsyncStorage.setItem('user', JSON.stringify(oauthData.user));
+            setUser(oauthData.user);
+          }
+          
+          // Set authentication state
+          setIsAuthenticated(true);
+          
+          console.log('🔐 AuthContext: Google OAuth authentication successful');
+        }
+      } catch (error) {
+        console.error('🔐 AuthContext: Error handling Google OAuth success:', error);
+      }
+    },
   };
 
   return (

@@ -48,7 +48,6 @@ const MapScreen = () => {
   useEffect(() => {
     loadProperties();
     // Don't auto-get user location - always default to Addis Ababa
-    console.log('🗺️ MapScreen: API Key:', GOOGLE_MAPS_API_KEY);
     console.log('🗺️ MapScreen: Platform:', Platform.OS);
     console.log('🗺️ MapScreen: Defaulting to Addis Ababa location');
   }, []);

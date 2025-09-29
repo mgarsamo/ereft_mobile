@@ -14,12 +14,12 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useAuth } from '../context/AuthContext';
-import GoogleSignIn from '../components/GoogleSignIn';
+import GoogleLoginButton from '../components/GoogleLoginButton';
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '../config/api';
 
 const LoginScreen = () => {
   const navigation = useNavigation();
-  const { login, isLoading, sendPhoneVerification } = useAuth();
+  const { login, isLoading, sendPhoneVerification, checkAuthStatus, handleGoogleOAuthSuccess } = useAuth();
   
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -142,6 +142,30 @@ const LoginScreen = () => {
 
   const handleRegisterPress = () => {
     navigation.navigate('Register');
+  };
+
+  // Handle Google OAuth success
+  const handleGoogleSuccess = async (oauthData) => {
+    try {
+      console.log('🔐 LoginScreen: Google OAuth success:', oauthData);
+      
+      // Use the AuthContext to handle the OAuth success
+      await handleGoogleOAuthSuccess(oauthData);
+      
+      console.log('🔐 LoginScreen: Google OAuth completed, navigating to Home');
+      
+      // Navigate to Home screen
+      navigation.navigate('Home');
+    } catch (error) {
+      console.error('🔐 LoginScreen: Error handling Google OAuth success:', error);
+      Alert.alert('Login Error', 'An error occurred during Google sign-in. Please try again.');
+    }
+  };
+
+  // Handle Google OAuth error
+  const handleGoogleError = (error) => {
+    console.error('🔐 LoginScreen: Google OAuth error:', error);
+    Alert.alert('Error', error || 'Google sign-in failed');
   };
 
   const handleForgotPassword = () => {
@@ -392,7 +416,12 @@ const LoginScreen = () => {
             </View>
 
             {/* Social Login Buttons */}
-            <GoogleSignIn style={styles.socialButton} textStyle={styles.socialButtonText} />
+            <GoogleLoginButton 
+              style={styles.socialButton} 
+              textStyle={styles.socialButtonText}
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+            />
 
             {/* Register Link */}
             <View style={styles.registerContainer}>

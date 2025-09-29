@@ -1,19 +1,27 @@
 // Environment Configuration for Ereft
+// Uses environment variables with fallbacks for development
+//
+// For production deployment:
+// 1. Install react-native-config: npm install react-native-config
+// 2. Create .env files for different environments
+// 3. Update getEnvVar to use react-native-config
+// 4. Never commit .env files to version control
+
+const getEnvVar = (key, fallback) => {
+  // For MVP: Use fallback values
+  // In production, this would use environment-specific builds
+  // or react-native-config for environment variables
+  return fallback;
+};
+
 export const ENV = {
-  API_BASE_URL: 'https://ereft.onrender.com', // Always use live backend
+  // API Configuration - MVP: Use Render production backend
+  API_BASE_URL: getEnvVar('API_BASE_URL', 'https://ereft.onrender.com'),
   
-  // Google OAuth Configuration - Google Identity Services (No Firebase)
-  GOOGLE_IOS_CLIENT_ID: '91486871350-ic7gbroh747pe9u31gqeidp45tl450i3.apps.googleusercontent.com',
-  GOOGLE_WEB_CLIENT_ID: '91486871350-79fvub6490473eofjpu1jjlhncuiua44.apps.googleusercontent.com',
+  // Google Maps API Key for geocoding and maps
+  GOOGLE_MAPS_API_KEY: getEnvVar('GOOGLE_MAPS_API_KEY', ''),
   
-  // Use web client ID since Google only allows HTTPS redirects
-  GOOGLE_CLIENT_ID: '91486871350-79fvub6490473eofjpu1jjlhncuiua44.apps.googleusercontent.com', // Web client for OAuth
-  
-  // Google Maps API Key for geocoding and maps - Updated from Render environment
-  GOOGLE_MAPS_API_KEY: 'AIzaSyAWis-jNmUwxCikA2FG7QqLi-nz7jEvadY',
-  
-  // Cloudinary Configuration for image uploads
-  CLOUDINARY_CLOUD_NAME: 'ereft',
-  CLOUDINARY_UPLOAD_PRESET: 'ereft_properties',
-  CLOUDINARY_API_URL: 'https://api.cloudinary.com/v1_1/ereft/image/upload',
+  // Google OAuth Configuration
+  GOOGLE_WEB_CLIENT_ID: getEnvVar('GOOGLE_WEB_CLIENT_ID', '91486871350-79fvub6490473eofjpu1jjlhncuiua44.apps.googleusercontent.com'),
+  GOOGLE_IOS_CLIENT_ID: getEnvVar('GOOGLE_IOS_CLIENT_ID', '91486871350-ic7gbroh747pe9u31gqe1jjlhncuiua44.apps.googleusercontent.com'),
 };

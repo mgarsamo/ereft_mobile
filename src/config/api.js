@@ -6,22 +6,20 @@ export const API_BASE_URL = ENV.API_BASE_URL;
 // API Endpoints
 export const API_ENDPOINTS = {
   // Property endpoints
-  PROPERTIES: '/api/properties/', // Reverted to /api/properties/
-  PROPERTY_DETAILS: '/api/properties/',
-  FEATURED_PROPERTIES: '/api/properties/featured/', // Changed to use @action
-  PROPERTY_STATS: '/api/properties/stats/', // Changed to use @action
-  PROPERTY_SEARCH: '/api/properties/search/', // Changed to use @action
+  PROPERTIES: '/api/listings/properties/', // Fixed to match Django URLs
+  PROPERTY_DETAILS: '/api/listings/properties/',
+  FEATURED_PROPERTIES: '/api/listings/properties/featured/', // Fixed to match Django URLs
+  PROPERTY_STATS: '/api/listings/properties/stats/', // Fixed to match Django URLs
+  PROPERTY_SEARCH: '/api/listings/properties/search/', // Fixed to match Django URLs
 
   // User endpoints
-  USER_PROFILE: '/api/profile/',
-  USER_STATS: '/api/users/me/stats/',
+  USER_PROFILE: '/api/listings/profile/',
+  USER_STATS: '/api/listings/users/me/stats/',
 
-  // Authentication endpoints
-  LOGIN: '/api/auth/login/',
-  REGISTER: '/api/auth/register/',
-  LOGOUT: '/api/auth/logout/',
-  GOOGLE_OAUTH: '/api/auth/google/',
-  VERIFY_TOKEN: '/api/auth/verify-token/',
+  // Authentication endpoints - MVP: Username/Password only
+  LOGIN: '/api/listings/auth/login/',
+  REGISTER: '/api/listings/auth/register/',
+  VERIFY_TOKEN: '/api/listings/auth/verify-token/',
 
   // Favorites
   FAVORITES: '/api/favorites/',

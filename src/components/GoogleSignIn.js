@@ -22,10 +22,21 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
       console.log('🔐 GoogleSignIn: User ID:', userId);
       console.log('🔐 GoogleSignIn: Email:', email);
       
-      // Store authentication data
+      // Store authentication data in format expected by AuthContext
       await AsyncStorage.setItem('authToken', token);
-      await AsyncStorage.setItem('userId', userId.toString());
-      await AsyncStorage.setItem('userEmail', email);
+      
+      // Store user data in the format expected by AuthContext
+      const userData = {
+        id: parseInt(userId),
+        username: `google_${userId}`,
+        email: email,
+        first_name: firstName || '',
+        last_name: lastName || '',
+        profile_picture: null,
+        provider: 'google',
+        google_id: googleId
+      };
+      await AsyncStorage.setItem('user', JSON.stringify(userData));
       
       // Call onSuccess with user data
       onSuccess?.({
@@ -116,6 +127,7 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
     };
   }, []);
 
+
   const handleGoogleSignIn = async () => {
     try {
       console.log('🔐 GoogleSignIn: Starting production-ready OAuth flow');
@@ -185,37 +197,6 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
           console.log('🔐 GoogleSignIn: No deep link in result URL, waiting for deep link listener...');
           console.log('🔐 GoogleSignIn: Expected: ereft://oauth?token=...&user_id=...&email=...');
           console.log('🔐 GoogleSignIn: Actual:', result.url);
-          
-          // FALLBACK: If no deep link in result URL, try to extract data from the HTML response
-          try {
-            console.log('🔐 GoogleSignIn: Attempting to extract auth data from HTML response...');
-            
-            // Make a request to the backend to get the current OAuth status
-            const response = await fetch('https://ereft.onrender.com/oauth');
-            const htmlText = await response.text();
-            
-            // Look for authentication data in the HTML
-            const tokenMatch = htmlText.match(/Authentication Token:\s*([a-f0-9]+)/);
-            const userIdMatch = htmlText.match(/User ID:\s*(\d+)/);
-            const emailMatch = htmlText.match(/Email:\s*([^\s<]+)/);
-            
-            if (tokenMatch && userIdMatch && emailMatch) {
-              const token = tokenMatch[1];
-              const userId = userIdMatch[1];
-              const email = emailMatch[1];
-              
-              console.log('🔐 GoogleSignIn: Extracted auth data from HTML:', { token: token ? 'YES' : 'NO', userId, email });
-              
-              // Complete the OAuth flow with extracted data
-              completeOAuthFlowWithToken(token, userId, email, '', '', '');
-            } else {
-              console.log('🔐 GoogleSignIn: Could not extract auth data from HTML');
-              onError?.('Failed to extract authentication data from response');
-            }
-          } catch (fallbackError) {
-            console.error('🔐 GoogleSignIn: Fallback extraction failed:', fallbackError);
-            onError?.('Failed to complete OAuth flow - please try again');
-          }
         }
         
       } else if (result.type === 'cancel') {
