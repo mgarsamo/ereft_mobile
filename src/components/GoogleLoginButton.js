@@ -23,12 +23,6 @@ const GoogleLoginButton = ({ onSuccess, onError, style, textStyle }) => {
         useProxy: __DEV__, // Use proxy in development, direct in production
       });
       
-      // For development, we need to use the proxy URL that Google can redirect to
-      // In production, we'll use the custom scheme
-      const actualRedirectUri = __DEV__ 
-        ? redirectUri 
-        : 'ereft://auth';
-      
       console.log('🔐 GoogleLoginButton: Client ID:', clientId);
       console.log('🔐 GoogleLoginButton: Redirect URI:', redirectUri);
       
@@ -36,7 +30,7 @@ const GoogleLoginButton = ({ onSuccess, onError, style, textStyle }) => {
       const authRequest = new AuthSession.AuthRequest({
         clientId: clientId,
         scopes: ['openid', 'profile', 'email'],
-        redirectUri: actualRedirectUri,
+        redirectUri: redirectUri,
         responseType: AuthSession.ResponseType.Code,
         extraParams: {
           access_type: 'offline',
@@ -44,25 +38,40 @@ const GoogleLoginButton = ({ onSuccess, onError, style, textStyle }) => {
         },
       });
       
-      console.log('🔐 GoogleLoginButton: Starting OAuth flow with AuthSession');
+      console.log('🔐 GoogleLoginButton: Starting OAuth flow with WebBrowser');
       
-      // Start the OAuth flow using the request object directly
-      const result = await AuthSession.startAsync({
-        authRequest,
-        returnUrl: actualRedirectUri,
-      });
+      // Use WebBrowser to start the OAuth flow
+      const result = await WebBrowser.openAuthSessionAsync(
+        authRequest.url,
+        redirectUri,
+        {
+          showInRecents: true,
+        }
+      );
       
       console.log('🔐 GoogleLoginButton: OAuth result:', result);
       
       if (result.type === 'success') {
-        const { code } = result.params;
-        console.log('🔐 GoogleLoginButton: Authorization code received:', code ? 'YES' : 'NO');
+        const { url } = result;
+        console.log('🔐 GoogleLoginButton: OAuth success URL:', url);
+        
+        // Parse the URL to extract the authorization code
+        const parsedUrl = new URL(url);
+        const code = parsedUrl.searchParams.get('code');
+        const error = parsedUrl.searchParams.get('error');
+        
+        if (error) {
+          console.error('🔐 GoogleLoginButton: OAuth error from URL:', error);
+          onError?.(error);
+          return;
+        }
         
         if (code) {
-          // Send the authorization code to our backend
-          await exchangeCodeForToken(code, actualRedirectUri);
+          console.log('🔐 GoogleLoginButton: Authorization code received, sending to backend');
+          // Send the authorization code to our backend for processing
+          await exchangeCodeForToken(code, redirectUri);
         } else {
-          console.error('🔐 GoogleLoginButton: No authorization code in result');
+          console.error('🔐 GoogleLoginButton: No authorization code in OAuth result');
           onError?.('No authorization code received from Google');
         }
       } else if (result.type === 'cancel') {
@@ -87,7 +96,7 @@ const GoogleLoginButton = ({ onSuccess, onError, style, textStyle }) => {
     try {
       console.log('🔐 GoogleLoginButton: Exchanging code for token...');
       
-      const response = await fetch(`${ENV.API_BASE_URL}/oauth/callback/`, {
+      const response = await fetch(`${ENV.API_BASE_URL}/api/listings/oauth/callback/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
