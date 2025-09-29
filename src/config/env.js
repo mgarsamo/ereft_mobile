@@ -24,4 +24,9 @@ export const ENV = {
   // Google OAuth Configuration
   GOOGLE_WEB_CLIENT_ID: getEnvVar('GOOGLE_WEB_CLIENT_ID', '91486871350-79fvub6490473eofjpu1jjlhncuiua44.apps.googleusercontent.com'),
   GOOGLE_IOS_CLIENT_ID: getEnvVar('GOOGLE_IOS_CLIENT_ID', '91486871350-ic7gbroh747pe9u31gqe1jjlhncuiua44.apps.googleusercontent.com'),
+  
+  // Cloudinary Configuration for Image Uploads
+  CLOUDINARY_CLOUD_NAME: getEnvVar('CLOUDINARY_CLOUD_NAME', 'detdm1snc'),
+  CLOUDINARY_UPLOAD_PRESET: getEnvVar('CLOUDINARY_UPLOAD_PRESET', 'ereft'),
+  CLOUDINARY_API_URL: getEnvVar('CLOUDINARY_API_URL', 'https://api.cloudinary.com/v1_1/detdm1snc/image/upload'),
 };

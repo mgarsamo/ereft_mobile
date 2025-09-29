@@ -142,7 +142,7 @@ const GoogleSignIn = ({ onSuccess, onError, style, textStyle }) => {
       // Use web client ID since Google only allows HTTPS redirects
       const clientId = ENV.GOOGLE_WEB_CLIENT_ID;
       
-      // Use the HTTPS redirect URI that Google accepts (per .cursorrules)
+      // Use the redirect URI that's already configured in Google Cloud Console
       const redirectUri = 'https://ereft.onrender.com/oauth';
       
       // For WebBrowser to work properly, we need to use the SAME redirect URI
