@@ -23,6 +23,12 @@ const GoogleLoginButton = ({ onSuccess, onError, style, textStyle }) => {
         useProxy: __DEV__, // Use proxy in development, direct in production
       });
       
+      // For development, we need to use the proxy URL that Google can redirect to
+      // In production, we'll use the custom scheme
+      const actualRedirectUri = __DEV__ 
+        ? redirectUri 
+        : 'ereft://auth';
+      
       console.log('🔐 GoogleLoginButton: Client ID:', clientId);
       console.log('🔐 GoogleLoginButton: Redirect URI:', redirectUri);
       
@@ -30,7 +36,7 @@ const GoogleLoginButton = ({ onSuccess, onError, style, textStyle }) => {
       const authRequest = new AuthSession.AuthRequest({
         clientId: clientId,
         scopes: ['openid', 'profile', 'email'],
-        redirectUri: redirectUri,
+        redirectUri: actualRedirectUri,
         responseType: AuthSession.ResponseType.Code,
         extraParams: {
           access_type: 'offline',
@@ -38,17 +44,12 @@ const GoogleLoginButton = ({ onSuccess, onError, style, textStyle }) => {
         },
       });
       
-      // Get the authorization URL
-      const authUrl = authRequest.makeAuthUrl({
-        authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
-      });
+      console.log('🔐 GoogleLoginButton: Starting OAuth flow with AuthSession');
       
-      console.log('🔐 GoogleLoginButton: Authorization URL:', authUrl);
-      
-      // Start the OAuth flow
+      // Start the OAuth flow using the request object directly
       const result = await AuthSession.startAsync({
-        authUrl,
-        returnUrl: redirectUri,
+        authRequest,
+        returnUrl: actualRedirectUri,
       });
       
       console.log('🔐 GoogleLoginButton: OAuth result:', result);
@@ -59,7 +60,7 @@ const GoogleLoginButton = ({ onSuccess, onError, style, textStyle }) => {
         
         if (code) {
           // Send the authorization code to our backend
-          await exchangeCodeForToken(code, redirectUri);
+          await exchangeCodeForToken(code, actualRedirectUri);
         } else {
           console.error('🔐 GoogleLoginButton: No authorization code in result');
           onError?.('No authorization code received from Google');
